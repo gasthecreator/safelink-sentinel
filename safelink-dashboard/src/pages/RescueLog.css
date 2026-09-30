@@ -1,0 +1,291 @@
+.rescueLog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  font-family: "Lexend Deca", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.rescueLog::-webkit-scrollbar {
+  width: 10px;
+}
+
+.rescueLog::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.rescueLog::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 5px;
+}
+
+.rescueLog::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+
+.rescueLog__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.rescueLog__stats {
+  display: flex;
+  gap: 24px;
+}
+
+.rescueLog__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rescueLog__statLabel {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rescueLog__statValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.rescueLog__exportBtn {
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rescueLog__exportBtn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.rescueLog__filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.rescueLog__filterGroup {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rescueLog__searchGroup {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.rescueLog__searchInput {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  min-width: 200px;
+}
+
+.rescueLog__searchInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.rescueLog__dateSelect {
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.rescueLog__clearFilters {
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rescueLog__clearFilters:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.filterBtn {
+  padding: 6px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filterBtn:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.filterBtn--active {
+  background: #0f172a;
+  color: #e5e7eb;
+  border-color: #0f172a;
+}
+
+.rescueLog__table {
+  background: #f9fafb;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.logTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.logTable thead {
+  background: #eff6ff;
+}
+
+.logTable th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #1e40af;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.logTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.logTable tbody tr:hover {
+  background: #f3f4f6;
+}
+
+.logTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.logTable__id {
+  font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Code", "Courier New", monospace;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.logTable__location {
+  font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Code", "Courier New", monospace;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.typeBadge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.typeBadge--accept {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.typeBadge--arrived {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.rescueLog__empty {
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.rescueLog__loading,
+.rescueLog__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 12px;
+}
+
+.rescueLog__error p {
+  color: #dc2626;
+  margin: 0;
+}
+
+.rescueLog__error button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e5e7eb;
+  cursor: pointer;
+  font-family: "Lexend Deca", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+}
+
+.rescueLog__error button:hover {
+  background: #1e293b;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 2px solid #bfdbfe;
+  border-top-color: #1d4ed8;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+

@@ -1,0 +1,339 @@
+.rescueModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.rescueModal {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.rescueModal__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.rescueModal__close:hover {
+  background: #ffffff;
+  color: #1e293b;
+  transform: scale(1.1);
+}
+
+.rescueModal__header {
+  padding: 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  color: white;
+}
+
+.rescueModal__header h2 {
+  margin: 0 0 4px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  font-family: "Lexend Deca", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.rescueModal__subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.rescueModal__content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  overflow: hidden;
+}
+
+.rescueModal__info {
+  padding: 24px;
+  overflow-y: auto;
+  background: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+}
+
+.infoCard {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.infoCard--full {
+  grid-column: 1 / -1;
+}
+
+.infoCard__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  font-family: "Lexend Deca", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.infoCard__value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.infoCard__address {
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.rescueModal__map {
+  position: relative;
+  min-height: 500px;
+}
+
+.rescueModal__mapContainer {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+}
+
+.mapLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 500px;
+  color: #6b7280;
+  gap: 12px;
+}
+
+.custom-marker {
+  background: transparent;
+  border: none;
+  text-align: center;
+}
+
+.marker-pin {
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.volunteer-pin {
+  background: #10b981;
+}
+
+.rescue-pin {
+  background: #ef4444;
+}
+
+.custom-marker span {
+  display: block;
+  transform: rotate(45deg);
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.rescueModal__actions {
+  padding: 20px 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  background: #f9fafb;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: "Lexend Deca", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.btn--primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn--primary:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.btn--secondary {
+  background: white;
+  color: #3b82f6;
+  border: 1px solid #3b82f6;
+}
+
+.btn--secondary:hover {
+  background: #eff6ff;
+}
+
+.typeBadge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.typeBadge--accept {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.typeBadge--arrived {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.typeBadge--help {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.priorityBadge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.priorityBadge--critical {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  animation: pulseCritical 2s ease-in-out infinite;
+}
+
+.priorityBadge--high {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.priorityBadge--normal {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+@keyframes pulseCritical {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    opacity: 0.9;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+  }
+}
+
+.arrivedStatus {
+  padding: 10px 16px;
+  background: #d1fae5;
+  color: #065f46;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  border: 1px solid #6ee7b7;
+}
+
+.btn--success {
+  background: #10b981 !important;
+  color: white !important;
+}
+
+.btn--success:hover:not(:disabled) {
+  background: #059669 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+@media (max-width: 768px) {
+  .rescueModal__content {
+    grid-template-columns: 1fr;
+  }
+
+  .rescueModal__info {
+    max-height: 300px;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+}
+

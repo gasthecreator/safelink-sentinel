@@ -1,0 +1,27 @@
+{
+  "name": "safelink-mesh-ai",
+  "version": "1.0.0",
+  "description": "SafeLink Mesh AI - Offline mesh networking with AI-powered routing for emergency communications",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "server",
+    "safelink-dashboard",
+    "app"
+  ],
+  "scripts": {
+    "start": "scripts\\start.bat",
+    "stop": "scripts\\stop.bat",
+    "start:app": "scripts\\start-app.bat"
+  },
+  "keywords": [
+    "mesh-network",
+    "offline",
+    "p2p",
+    "encryption",
+    "react-native",
+    "emergency-communications"
+  ],
+  "author": "SafeLink Team",
+  "license": "MIT"
+}

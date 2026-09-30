@@ -1,0 +1,15 @@
+﻿node_modules/
+.env
+*.log
+data/
+dist/
+build/
+.DS_Store
+*.swp
+*.swo
+*.tmp
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
