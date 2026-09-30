@@ -32,12 +32,18 @@ const routesRouter = require("./routes/routes");
 const locationUpdatesRouter = require("./routes/locationUpdates");
 const weatherRouter = require("./routes/weather");
 const configRouter = require("./routes/config");
+const disasterSentinelRouter = require("./routes/disasterSentinel");
+const DisasterSentinelService = require("./services/DisasterSentinelService");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Needed so req.ip resolves to the real client address (used for IP
+// geolocation fallback) when running behind a platform proxy like Render.
+app.set("trust proxy", true);
+
 // CORS configuration
-const allowedOrigins = process.env.FRONTEND_URL 
+const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
   : ['http://localhost:5173', 'http://localhost:3000'];
 
@@ -72,9 +78,17 @@ app.use("/api/routes", routesRouter);
 app.use("/api/location-updates", locationUpdatesRouter);
 app.use("/api/weather", weatherRouter);
 app.use("/api/config", configRouter);
+app.use("/api/sentinel", disasterSentinelRouter);
+
+const FETCH_INTERVAL_MS = 30 * 60 * 1000; // poll GDACS every 30 minutes
+const PROCESS_INTERVAL_MS = 5 * 60 * 1000; // re-check user proximity every 5 minutes
 
 app.listen(PORT, () => {
   console.log(`[SafeLink][Server] 🌐 Listening on port ${PORT}`);
   console.log(`[SafeLink][Server] 🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  DisasterSentinelService.safeUpdateEvents();
+  setInterval(DisasterSentinelService.safeUpdateEvents, FETCH_INTERVAL_MS);
+  setInterval(DisasterSentinelService.processEventsForUsers, PROCESS_INTERVAL_MS);
 });
 
