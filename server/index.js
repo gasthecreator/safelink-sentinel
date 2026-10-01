@@ -87,8 +87,14 @@ app.listen(PORT, () => {
   console.log(`[SafeLink][Server] 🌐 Listening on port ${PORT}`);
   console.log(`[SafeLink][Server] 🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 
-  DisasterSentinelService.safeUpdateEvents();
-  setInterval(DisasterSentinelService.safeUpdateEvents, FETCH_INTERVAL_MS);
-  setInterval(DisasterSentinelService.processEventsForUsers, PROCESS_INTERVAL_MS);
+  if (process.env.ENABLE_SENTINEL_SCHEDULER === "true") {
+    DisasterSentinelService.safeUpdateEvents();
+    setInterval(DisasterSentinelService.safeUpdateEvents, FETCH_INTERVAL_MS);
+    setInterval(DisasterSentinelService.processEventsForUsers, PROCESS_INTERVAL_MS);
+  } else {
+    console.log(
+      "[SafeLink][DisasterSentinel] Scheduler disabled (set ENABLE_SENTINEL_SCHEDULER=true to enable GDACS polling)"
+    );
+  }
 });
 
