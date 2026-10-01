@@ -5,13 +5,19 @@ import { getStorage } from 'firebase/storage'
 import { getAuth } from 'firebase/auth'
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyAPFU5nUqKi96IU0bGeYMApkenF5sYma3g',
-  authDomain: 'lifeline-61a5e.firebaseapp.com',
-  projectId: 'lifeline-61a5e',
-  storageBucket: 'lifeline-61a5e.firebasestorage.app',
-  messagingSenderId: '248397516667',
-  appId: '1:248397516667:web:ca2dfd3c13958cce9ff7de',
-  measurementId: 'G-E8R4N1VCZY',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+}
+
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  throw new Error(
+    'Missing Firebase config. Set VITE_FIREBASE_* vars in safelink-dashboard/.env (see env.example).'
+  )
 }
 
 // Initialize Firebase
@@ -24,4 +30,3 @@ export const storage = getStorage(app)
 export const auth = getAuth(app)
 
 export default app
-
