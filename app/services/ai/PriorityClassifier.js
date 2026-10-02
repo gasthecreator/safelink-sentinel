@@ -1,7 +1,7 @@
 // app/services/ai/PriorityClassifier.js
 
 // Simple heuristic classifier for message urgency (placeholder for TFLite)
-import { PRIORITY_LEVELS } from "../../app/constants/messageSchema.js";
+import { PRIORITY_LEVELS } from "../../constants/messageSchema.js";
 
 class PriorityClassifier {
   classify(text, meta = {}) {

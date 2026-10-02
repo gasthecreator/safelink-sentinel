@@ -7,7 +7,7 @@ let AsyncStorage = global.AsyncStorage;
 
 if (!AsyncStorage) {
   try {
-    AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    AsyncStorage = require("@react-native-async-storage/async-storage").default;
   } catch {
     console.log("[SafeLink] ⚙️ Using in-memory AsyncStorage mock in IdentityManager");
     AsyncStorage = {

@@ -2,11 +2,10 @@
 // AI-driven alerts + relief / donation requests
 
 import GeoBroadcast from "./GeoBroadcast.js";
-import SyncManager from "../../../services/storage/SyncManager.js";
-import HealthMonitor from "../../../services/storage/HealthMonitor.js";
+import HealthMonitor from "../storage/HealthMonitor.js";
 import MessageRelay from "./MessageRelay.js";
-import RouterAI from "../../../services/ai/RouterAI.js";
-import ReliefRequestStore from "../../../services/storage/ReliefRequestStore.js";
+import RouterAI from "../ai/RouterAI.js";
+import ReliefRequestStore from "../storage/ReliefRequestStore.js";
 import { v4 as uuidv4 } from "uuid";
 
 class AlertManager {

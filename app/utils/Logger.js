@@ -2,7 +2,7 @@
 
 let fs;
 try {
-  fs = await import("fs");
+  fs = require("fs");
 } catch {
   fs = null;
 }
@@ -18,9 +18,9 @@ class Logger {
 
     console.log(line);
 
-    if (fs && fs.default?.appendFileSync) {
+    if (fs && fs.appendFileSync) {
       try {
-        fs.default.appendFileSync(LOG_FILE, line + "\n");
+        fs.appendFileSync(LOG_FILE, line + "\n");
       } catch {
         // ignore file errors in mobile
       }
