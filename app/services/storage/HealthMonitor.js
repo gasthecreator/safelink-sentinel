@@ -35,7 +35,7 @@ class HealthMonitor {
       if (peerCount === 0 || avgRssi <= -90) {
         reliabilityScore = "Critical";
       } else if (avgRssi <= -75 || staleCount > peerCount / 2) {
-        reliabilityScore = "Degraded";
+        reliabilityScore = "Warning";
       }
 
       const successRate = Math.max(
