@@ -38,20 +38,28 @@ class NodeDiscovery {
     }
     
     try {
-      // Request Bluetooth permissions (Android 12+)
       if (Platform.OS === "android") {
+        // BLUETOOTH_SCAN/CONNECT only exist on Android 12+ (API 31). On older
+        // versions BLE scanning is gated by ACCESS_FINE_LOCATION instead (the
+        // legacy BLUETOOTH/BLUETOOTH_ADMIN permissions are install-time).
+        const P = PermissionsAndroid.PERMISSIONS;
+        const required =
+          Platform.Version >= 31
+            ? [P.BLUETOOTH_SCAN, P.BLUETOOTH_CONNECT]
+            : [P.ACCESS_FINE_LOCATION];
+        const optional = Platform.Version >= 31 ? [P.ACCESS_FINE_LOCATION] : [];
+
         const granted = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          ...required,
+          ...optional,
         ]);
-        if (
-          granted["android.permission.BLUETOOTH_SCAN"] !==
-            PermissionsAndroid.RESULTS.GRANTED ||
-          granted["android.permission.BLUETOOTH_CONNECT"] !==
-            PermissionsAndroid.RESULTS.GRANTED
-        ) {
-          console.log("⚠️ Bluetooth permission denied.");
+        const missing = required.filter(
+          (perm) => granted[perm] !== PermissionsAndroid.RESULTS.GRANTED
+        );
+        if (missing.length > 0) {
+          console.log(
+            `⚠️ Bluetooth permission denied (API ${Platform.Version}): ${missing.join(", ")}`
+          );
           return;
         }
 
