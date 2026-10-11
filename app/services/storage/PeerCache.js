@@ -7,12 +7,13 @@ const PEER_STORAGE_KEY = "@safelink_peers";
 export const storePeer = async (peer) => {
   try {
     const existingPeers = await getAllPeers();
-    // Check if peer already exists
-    const updatedPeers = existingPeers.find((p) => p.id === peer.id)
-      ? existingPeers
-      : [...existingPeers, peer];
+    // Upsert: a peer we already know keeps its slot but gets fresh signal/address/timestamp
+    const index = existingPeers.findIndex((p) => p.id === peer.id);
+    const updatedPeers =
+      index >= 0
+        ? existingPeers.map((p, i) => (i === index ? { ...p, ...peer } : p))
+        : [...existingPeers, peer];
     await AsyncStorage.setItem(PEER_STORAGE_KEY, JSON.stringify(updatedPeers));
-    console.log(`[SafeLink] 💾 Stored peer: ${peer.name}`);
   } catch (err) {
     console.error("❌ Error storing peer:", err);
   }

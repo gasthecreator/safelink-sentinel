@@ -29,6 +29,8 @@ export default function SendMessageScreen({ route, navigation }) {
   const [includeLocation, setIncludeLocation] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [resultText, setResultText] = useState("Message sent!");
+  const [delivered, setDelivered] = useState(true);
 
   const title = mode === "relief" ? "Request help" : "Send status update";
   const placeholder =
@@ -60,43 +62,49 @@ export default function SendMessageScreen({ route, navigation }) {
       // Get sender ID
       const senderId = await IdentityManager.getMyId();
       
+      let summary;
       if (mode === "relief") {
         // Create relief request and alert
-        const reliefRequest = await MeshManager.createReliefRequest(senderId, {
-          message: text,
+        const result = await MeshManager.createReliefRequest(senderId, {
+          title: text.split("\n")[0].slice(0, 80),
+          description: text,
           priority,
-          includeLocation,
-          timestamp: new Date().toISOString(),
         });
-        
-        console.log("[SendMessageScreen] Relief request created:", reliefRequest);
+        summary = result?.summary;
+        console.log("[SendMessageScreen] Relief request created:", result?.request?.id);
       } else {
         // Broadcast status update
-        const alert = await MeshManager.broadcastAlert(senderId, text, {
-          priority,
-          includeLocation,
-          timestamp: new Date().toISOString(),
-        });
-        
-        console.log("[SendMessageScreen] Alert broadcast:", alert);
+        summary = await MeshManager.broadcastAlert(senderId, text, { priority });
+        console.log("[SendMessageScreen] Alert broadcast:", summary);
       }
-      
+
+      // Report what actually happened: sending to nobody is not "sent".
+      const reached = summary?.success || 0;
+      const ok = reached > 0;
+      setDelivered(ok);
+      setResultText(
+        ok
+          ? `Delivered to ${reached} nearby device${reached === 1 ? "" : "s"}.`
+          : summary?.totalTargets
+          ? "Could not reach any nearby device. Try again."
+          : mode === "relief"
+          ? "Saved on this phone. No nearby devices yet - it will not reach anyone until someone is in range."
+          : "No nearby devices in range. Nothing was sent."
+      );
       setSent(true);
       setSubmitting(false);
-      
+
       setTimeout(() => {
         setSent(false);
-        navigation.goBack();
-      }, 1200);
+        if (ok) navigation.goBack();
+      }, ok ? 1500 : 4000);
     } catch (error) {
       console.error("[SendMessageScreen] Send error:", error);
       setSubmitting(false);
-      // Still show success for UX, but log error
+      setDelivered(false);
+      setResultText("Something went wrong. Your message was not sent.");
       setSent(true);
-      setTimeout(() => {
-        setSent(false);
-        navigation.goBack();
-      }, 1200);
+      setTimeout(() => setSent(false), 4000);
     }
   };
 
@@ -123,8 +131,8 @@ export default function SendMessageScreen({ route, navigation }) {
             iterationCount={1}
             style={styles.successContainer}
           >
-            <Text style={styles.successIcon}>✅</Text>
-            <Text style={styles.successText}>Message sent!</Text>
+            <Text style={styles.successIcon}>{delivered ? "✅" : "⚠️"}</Text>
+            <Text style={[styles.successText, !delivered && { color: "#B45309" }]}>{resultText}</Text>
           </Animatable.View>
         )}
 

@@ -2,6 +2,13 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- BLE: scan/connect (central role, via react-native-ble-plx) and advertise
+         (peripheral role, via SafeLinkPeripheralModule). Android 12+ runtime
+         permissions; pre-12 uses the legacy BLUETOOTH* + location permissions
+         that react-native-ble-plx declares. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"

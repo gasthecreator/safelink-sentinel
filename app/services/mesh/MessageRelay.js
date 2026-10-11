@@ -1,38 +1,76 @@
 // app/services/mesh/MessageRelay.js
+// Sends signed (and, for direct messages, encrypted) envelopes to nearby nodes
+// over BLE, receives and verifies envelopes from them, and relays what it
+// receives onward so messages can travel beyond one hop.
 
 import { getAllPeers } from "../storage/PeerCache.js";
 import { v4 as uuidv4 } from "uuid";
-import Encryptor from "../crypto/Encryptor.js";
+import {
+  createEnvelope,
+  verifyEnvelope,
+  openEnvelope,
+  encodeEnvelope,
+  decodeEnvelope,
+} from "../crypto/Envelope.js";
 import IdentityManager from "../crypto/IdentityManager.js";
 import RouterAI from "../ai/RouterAI.js";
 import AnalyticsLogger from "../storage/AnalyticsLogger.js";
-import MessageCache from "../storage/MessageCache.js"; // optional persistent store
+import MessageCache from "../storage/MessageCache.js";
+import BleTransport from "../ble/BleTransport.js";
 
-// In-memory fallback queue
+// In-memory outgoing queue
 const messageQueue = [];
+
+const PEER_BACKOFF_MS = 30 * 1000; // after a failed send, leave that peer alone for a while
+const MAX_MESSAGE_AGE_MS = 24 * 60 * 60 * 1000;
+const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const SEEN_LIMIT = 1000;
+const MAX_FORWARD_PEERS = 5;
 
 class MessageRelay {
   constructor() {
     this.queue = messageQueue;
     this.maxRetries = 3;
     this.retryDelay = 800; // ms between retries
-    this.blacklist = new Set(); // peers that failed recently
+    this.peerBackoff = new Map(); // peer id -> time we may try it again
+    this.seen = new Map(); // envelope id -> true, insertion-ordered for eviction
+    this.receivedListeners = [];
   }
 
-  // Create a new secure message
+  markSeen(id) {
+    this.seen.set(id, true);
+    if (this.seen.size > SEEN_LIMIT) {
+      this.seen.delete(this.seen.keys().next().value);
+    }
+  }
+
+  // Create a new secure message. A receiverId makes it a direct, encrypted
+  // message; without one it is a signed broadcast that any node may read.
   async createMessage(senderId, receiverId, content, meta = {}) {
     try {
-      const { payload, signature } = await IdentityManager.buildSignedMessage(content, meta);
-      const encryptedContent = await Encryptor.encrypt(JSON.stringify(payload));
+      const id = uuidv4();
+      let recipientBoxKey = null;
+      if (receiverId) {
+        const peers = await getAllPeers();
+        recipientBoxKey = peers.find((p) => p.id === receiverId)?.box || null;
+      }
+
+      const envelope = await createEnvelope({
+        id,
+        content,
+        meta,
+        to: receiverId || null,
+        recipientBoxKey,
+      });
+      this.markSeen(id); // don't process our own message if it echoes back
 
       const message = {
-        id: uuidv4(),
+        id,
         senderId,
-        receiverId,
-        encrypted: true,
-        data: encryptedContent,
-        signature,
-        timestamp: new Date().toISOString(),
+        receiverId, // next-hop peer to hand the envelope to
+        encrypted: envelope.type === "direct",
+        envelope,
+        timestamp: envelope.ts,
         status: "pending", // pending | delivered | failed
         hopCount: 0,
         retryCount: 0,
@@ -43,13 +81,23 @@ class MessageRelay {
       AnalyticsLogger.logPending(message);
 
       // Persist for crash safety
-      if (MessageCache?.storeMessage) await MessageCache.storeMessage(message);
+      await MessageCache.storeMessage(message);
 
-      console.log(`[SafeLink] 📨 Created secure message (${content})`);
+      console.log(`[SafeLink] 📨 Created ${envelope.type} message ${id.slice(0, 8)}`);
       return message;
     } catch (err) {
       console.error("[SafeLink] ❌ Failed to create message:", err.message);
     }
+  }
+
+  isBackedOff(peerId) {
+    const until = this.peerBackoff.get(peerId);
+    if (!until) return false;
+    if (Date.now() >= until) {
+      this.peerBackoff.delete(peerId);
+      return false;
+    }
+    return true;
   }
 
   // Try to deliver message once
@@ -65,33 +113,34 @@ class MessageRelay {
 
     const receiver = peers.find((p) => p.id === message.receiverId);
 
-    if (!receiver || this.blacklist.has(receiver.id)) {
-      console.log(`[SafeLink] 🚫 Receiver unavailable or blacklisted (${message.receiverId})`);
+    if (!receiver || this.isBackedOff(receiver.id)) {
+      console.log(`[SafeLink] 🚫 Receiver unavailable or backing off (${message.receiverId})`);
       message.status = "failed";
       AnalyticsLogger.logDelivery(message, false, receiver);
       RouterAI.recordResult(message.receiverId, false);
-      this.blacklist.add(message.receiverId);
       return false;
     }
 
-    // Simulate network latency / delivery window
-    await new Promise((resolve) => setTimeout(resolve, 400 + Math.random() * 200));
+    try {
+      await BleTransport.send(receiver, encodeEnvelope(message.envelope));
+    } catch (err) {
+      console.log(`[SafeLink] ❌ Send to ${receiver.name} failed: ${err.message}`);
+      message.status = "failed";
+      this.peerBackoff.set(receiver.id, Date.now() + PEER_BACKOFF_MS);
+      AnalyticsLogger.logDelivery(message, false, receiver);
+      RouterAI.recordResult(receiver.id, false);
+      return false;
+    }
 
     message.hopCount += 1;
     message.status = "delivered";
-
-    // Decrypt to verify
-    const decrypted = await Encryptor.decrypt(message.data);
-    const parsed = decrypted ? JSON.parse(decrypted) : { content: "[unreadable]" };
-
-    console.log(`[SafeLink] ✅ Delivered: "${parsed.content}" → ${receiver.name}`);
+    this.peerBackoff.delete(receiver.id);
+    console.log(`[SafeLink] ✅ Delivered ${message.id.slice(0, 8)} → ${receiver.name}`);
 
     AnalyticsLogger.logDelivery(message, true, receiver);
-    RouterAI.recordResult(message.receiverId, true);
+    RouterAI.recordResult(receiver.id, true);
 
-    // Persist new state
-    if (MessageCache?.updateMessage) await MessageCache.updateMessage(message);
-
+    await MessageCache.updateMessage(message);
     return true;
   }
 
@@ -120,11 +169,94 @@ class MessageRelay {
         console.log(`[SafeLink] ❌ Max retries reached for ${message.id}`);
         message.status = "failed";
         AnalyticsLogger.logDelivery(message, false, null);
-        if (MessageCache?.updateMessage) await MessageCache.updateMessage(message);
+        await MessageCache.updateMessage(message);
         return false;
       }
     }
     return message.status === "delivered";
+  }
+
+  // ===== RECEIVE + RELAY =====
+
+  /** cb(received) for every verified message addressed to us or broadcast. Returns an unsubscribe function. */
+  onMessageReceived(cb) {
+    this.receivedListeners.push(cb);
+    return () => {
+      this.receivedListeners = this.receivedListeners.filter((fn) => fn !== cb);
+    };
+  }
+
+  /**
+   * Handle the bytes of one complete message from a nearby node: verify,
+   * de-duplicate, deliver to listeners if it's for us, and relay it onward.
+   */
+  async receive(bytes) {
+    const env = decodeEnvelope(bytes);
+    if (!verifyEnvelope(env)) {
+      console.log("[SafeLink] 🚫 Dropped message that failed verification");
+      return null;
+    }
+    if (this.seen.has(env.id)) return null;
+
+    const age = Date.now() - Date.parse(env.ts);
+    if (!(age > -MAX_CLOCK_SKEW_MS && age < MAX_MESSAGE_AGE_MS)) {
+      console.log(`[SafeLink] 🚫 Dropped message ${env.id.slice(0, 8)} with implausible timestamp`);
+      return null;
+    }
+    this.markSeen(env.id);
+
+    const myId = await IdentityManager.getDeviceId();
+    if (env.from === myId) return null;
+
+    let received = null;
+    const addressedToMe = env.type === "direct" && env.to === myId;
+    if (env.type === "broadcast" || addressedToMe) {
+      const opened = await openEnvelope(env);
+      if (opened) {
+        received = {
+          id: env.id,
+          from: env.from,
+          to: env.to,
+          type: env.type,
+          content: opened.content,
+          meta: opened.meta || {},
+          sentAt: env.ts,
+          receivedAt: new Date().toISOString(),
+          hops: env.hops,
+          status: "received",
+        };
+        await MessageCache.storeMessage(received);
+        console.log(`[SafeLink] 📥 Received ${env.type} message ${env.id.slice(0, 8)} from ${env.from.slice(0, 8)}`);
+        this.receivedListeners.forEach((cb) => cb(received));
+      } else {
+        console.log(`[SafeLink] ⚠️ Could not open message ${env.id.slice(0, 8)}`);
+      }
+    }
+
+    // Everything not addressed to us is relayed; broadcasts are relayed too.
+    if (!addressedToMe) this.forward(env).catch(() => {});
+    return received;
+  }
+
+  // Pass an envelope on to nearby peers until its hop limit is reached.
+  async forward(env) {
+    if (env.hops + 1 >= env.ttl) return;
+    const peers = (await getAllPeers())
+      .filter((p) => p.id !== env.from && p.bleId && !this.isBackedOff(p.id))
+      .sort((a, b) => (b.rssi || -100) - (a.rssi || -100))
+      .slice(0, MAX_FORWARD_PEERS);
+    if (peers.length === 0) return;
+
+    const bytes = encodeEnvelope({ ...env, hops: env.hops + 1 });
+    for (const peer of peers) {
+      try {
+        await BleTransport.send(peer, bytes);
+      } catch (err) {
+        this.peerBackoff.set(peer.id, Date.now() + PEER_BACKOFF_MS);
+        console.log(`[SafeLink] Relay to ${peer.name} failed: ${err.message}`);
+      }
+    }
+    console.log(`[SafeLink] 🔀 Relayed ${env.id.slice(0, 8)} to ${peers.length} peer(s)`);
   }
 
   // Retry all failed messages

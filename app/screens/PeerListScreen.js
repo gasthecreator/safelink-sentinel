@@ -4,14 +4,23 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity } from "react-native
 import { useNavigation } from "@react-navigation/native";
 import * as Animatable from "react-native-animatable";
 import LinearGradient from "react-native-linear-gradient";
+import NodeDiscovery from "../services/mesh/NodeDiscovery";
 
 export default function PeerListScreen() {
-  const [peers, setPeers] = useState([
-    { id: "11:22:33:44:55:66", name: "Alpha Node", rssi: -45, distance: "1.2" },
-    { id: "77:88:99:AA:BB:CC", name: "Bravo Node", rssi: -62, distance: "3.8" },
-    { id: "DE:AD:BE:EF:FE:ED", name: "Charlie Node", rssi: -78, distance: "8.5" },
-  ]);
+  const [peers, setPeers] = useState(() => NodeDiscovery.getPeers());
   const navigation = useNavigation();
+
+  // Live list of nodes found over BLE (stale ones age out of getPeers())
+  useEffect(() => {
+    const refresh = () => setPeers([...NodeDiscovery.getPeers()]);
+    refresh();
+    const unsubscribe = NodeDiscovery.onPeerDiscovered(refresh);
+    const timer = setInterval(refresh, 5000);
+    return () => {
+      unsubscribe();
+      clearInterval(timer);
+    };
+  }, []);
 
   const renderPeer = ({ item, index }) => {
     const strength =
@@ -46,10 +55,10 @@ export default function PeerListScreen() {
     >
       <Text style={styles.title}>Connected Devices</Text>
       <Text style={styles.subtitle}>
-        These are nearby SafeLink nodes currently within your mesh range.
+        SafeLink nodes currently within Bluetooth range of this phone.
       </Text>
       {peers.length === 0 ? (
-        <Text style={styles.empty}>No connected devices detected.</Text>
+        <Text style={styles.empty}>No nearby SafeLink devices found yet. Keep the app open on both phones.</Text>
       ) : (
         <FlatList
           data={peers}

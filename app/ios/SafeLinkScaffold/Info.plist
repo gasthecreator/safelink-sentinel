@@ -31,6 +31,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>SafeLink Mesh uses Bluetooth to find nearby phones and pass emergency messages between them without internet or cell service.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>SafeLink Mesh uses your location to estimate distance to nearby devices and coordinate disaster relief.</string>
 	<key>UIApplicationSceneManifest</key>
@@ -50,6 +52,11 @@
 			</array>
 		</dict>
 	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>bluetooth-central</string>
+		<string>bluetooth-peripheral</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

@@ -21,7 +21,7 @@ import NodeDiscovery from "../services/mesh/NodeDiscovery";
 
 export default function MeshHomeScreen({ navigation }) {
   const [peers, setPeers] = useState([]);
-  const [health, setHealth] = useState({ reliabilityScore: "Good", successRate: 94 });
+  const [health, setHealth] = useState({ reliabilityScore: "Critical", successRate: 0 });
   const [offlineModal, setOfflineModal] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
   const [alerts, setAlerts] = useState([]);
@@ -55,12 +55,12 @@ export default function MeshHomeScreen({ navigation }) {
         if (healthData) {
           setHealth({
             reliabilityScore: healthData.reliabilityScore || "Good",
-            successRate: healthData.successRate || 94,
+            successRate: healthData.successRate ?? 0,
           });
         }
 
         // Load initial alerts
-        const reliefRequests = await MeshManager.getOpenReliefRequests();
+        const reliefRequests = await MeshManager.getAlertFeed();
         if (reliefRequests && Array.isArray(reliefRequests)) {
           setAlerts(reliefRequests);
         }
@@ -70,8 +70,8 @@ export default function MeshHomeScreen({ navigation }) {
       } catch (error) {
         console.error("[MeshHomeScreen] Initialization error:", error);
         // Fallback to simulation mode for web/emulator
-        if (Platform.OS === "web" || __DEV__) {
-          console.log("[MeshHomeScreen] Using simulation mode...");
+        if (!NodeDiscovery.bleAvailable && (Platform.OS === "web" || __DEV__)) {
+          console.log("[MeshHomeScreen] No BLE stack - using simulation mode...");
           const simulatedPeers = await NodeDiscovery.simulateDiscovery?.();
           if (simulatedPeers) {
             setPeers(simulatedPeers);
@@ -121,8 +121,8 @@ export default function MeshHomeScreen({ navigation }) {
       console.error("[MeshHomeScreen] Discovery error:", error);
       setIsScanning(false);
       
-      // Fallback to simulation
-      if (__DEV__) {
+      // Fallback to simulation (only when there is no BLE stack at all)
+      if (__DEV__ && !NodeDiscovery.bleAvailable) {
         const simulatedPeers = await NodeDiscovery.simulateDiscovery?.();
         if (simulatedPeers) {
           setPeers(simulatedPeers);
@@ -144,13 +144,13 @@ export default function MeshHomeScreen({ navigation }) {
         if (healthData) {
           setHealth({
             reliabilityScore: healthData.reliabilityScore || "Good",
-            successRate: healthData.successRate || 94,
+            successRate: healthData.successRate ?? 0,
           });
         }
       });
 
       // Update alerts
-      MeshManager.getOpenReliefRequests().then((reliefRequests) => {
+      MeshManager.getAlertFeed().then((reliefRequests) => {
         if (reliefRequests && Array.isArray(reliefRequests)) {
           setAlerts(reliefRequests);
         }

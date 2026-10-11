@@ -14,6 +14,8 @@
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		59A22F063FA5B3DDCB69AFD0 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B0F00F7A821B69D1601BFB9E /* PrivacyInfo.xcprivacy */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		82A3F2A803BBA08AF2C2017C /* SafeLinkPeripheral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC62A8B677A2069DC087138 /* SafeLinkPeripheral.swift */; };
+		921109127E633A46B48ADE2D /* SafeLinkPeripheral.m in Sources */ = {isa = PBXBuildFile; fileRef = C02B99A0679BE5B55F17FAEE /* SafeLinkPeripheral.m */; };
 		DFBECCA7D685D44E8102B2E0 /* libPods-SafeLinkMesh-SafeLinkMeshTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C1252D2B03E1DEFB3D86F0FE /* libPods-SafeLinkMesh-SafeLinkMeshTests.a */; };
 /* End PBXBuildFile section */
 
@@ -43,13 +45,16 @@
 		5709B34CF0A7D63546082F79 /* Pods-SafeLinkScaffold.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SafeLinkScaffold.release.xcconfig"; path = "Target Support Files/Pods-SafeLinkScaffold/Pods-SafeLinkScaffold.release.xcconfig"; sourceTree = "<group>"; };
 		596FF21B2AB28A1A98770454 /* Pods-SafeLinkMesh-SafeLinkMeshTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SafeLinkMesh-SafeLinkMeshTests.debug.xcconfig"; path = "Target Support Files/Pods-SafeLinkMesh-SafeLinkMeshTests/Pods-SafeLinkMesh-SafeLinkMeshTests.debug.xcconfig"; sourceTree = "<group>"; };
 		5B7EB9410499542E8C5724F5 /* Pods-SafeLinkScaffold-SafeLinkScaffoldTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SafeLinkScaffold-SafeLinkScaffoldTests.debug.xcconfig"; path = "Target Support Files/Pods-SafeLinkScaffold-SafeLinkScaffoldTests/Pods-SafeLinkScaffold-SafeLinkScaffoldTests.debug.xcconfig"; sourceTree = "<group>"; };
+		6CC62A8B677A2069DC087138 /* SafeLinkPeripheral.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SafeLinkPeripheral.swift; path = SafeLinkScaffold/SafeLinkPeripheral.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = SafeLinkScaffold/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		89C6BE57DB24E9ADA2F236DE /* Pods-SafeLinkScaffold-SafeLinkScaffoldTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SafeLinkScaffold-SafeLinkScaffoldTests.release.xcconfig"; path = "Target Support Files/Pods-SafeLinkScaffold-SafeLinkScaffoldTests/Pods-SafeLinkScaffold-SafeLinkScaffoldTests.release.xcconfig"; sourceTree = "<group>"; };
 		B0F00F7A821B69D1601BFB9E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = SafeLinkScaffold/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		C02B99A0679BE5B55F17FAEE /* SafeLinkPeripheral.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = SafeLinkPeripheral.m; path = SafeLinkScaffold/SafeLinkPeripheral.m; sourceTree = "<group>"; };
 		C1252D2B03E1DEFB3D86F0FE /* libPods-SafeLinkMesh-SafeLinkMeshTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SafeLinkMesh-SafeLinkMeshTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E3ACD9F2A72059130C39D2E0 /* Pods-SafeLinkMesh.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SafeLinkMesh.release.xcconfig"; path = "Target Support Files/Pods-SafeLinkMesh/Pods-SafeLinkMesh.release.xcconfig"; sourceTree = "<group>"; };
 		EB4C4CBB43F1D87582C0027E /* Pods-SafeLinkMesh-SafeLinkMeshTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SafeLinkMesh-SafeLinkMeshTests.release.xcconfig"; path = "Target Support Files/Pods-SafeLinkMesh-SafeLinkMeshTests/Pods-SafeLinkMesh-SafeLinkMeshTests.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		F7544E02806F257BD8C0A4B3 /* SafeLinkMesh-Bridging-Header.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "SafeLinkMesh-Bridging-Header.h"; path = "SafeLinkScaffold/SafeLinkMesh-Bridging-Header.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,6 +103,9 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB71A68108700A75B9A /* main.m */,
+				6CC62A8B677A2069DC087138 /* SafeLinkPeripheral.swift */,
+				C02B99A0679BE5B55F17FAEE /* SafeLinkPeripheral.m */,
+				F7544E02806F257BD8C0A4B3 /* SafeLinkMesh-Bridging-Header.h */,
 			);
 			name = SafeLinkScaffold;
 			sourceTree = "<group>";
@@ -406,6 +414,8 @@
 			files = (
 				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
+				82A3F2A803BBA08AF2C2017C /* SafeLinkPeripheral.swift in Sources */,
+				921109127E633A46B48ADE2D /* SafeLinkPeripheral.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -494,6 +504,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.safelink.mesh;
 				PRODUCT_NAME = SafeLinkMesh;
+				SWIFT_OBJC_BRIDGING_HEADER = "SafeLinkScaffold/SafeLinkMesh-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -522,6 +533,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.safelink.mesh;
 				PRODUCT_NAME = SafeLinkMesh;
+				SWIFT_OBJC_BRIDGING_HEADER = "SafeLinkScaffold/SafeLinkMesh-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
