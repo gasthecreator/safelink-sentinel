@@ -70,6 +70,27 @@ class NodeDiscovery {
     return true;
   }
 
+  // Wi-Fi Direct is optional; BLE works without it. On Android 13+ it needs the
+  // NEARBY_WIFI_DEVICES runtime permission (before that it relies on the location
+  // permission already granted for BLE scanning).
+  async initWifiP2p() {
+    if (!WifiP2pManager || !WifiP2pManager.initialize) return;
+    try {
+      if (Platform.Version >= 33) {
+        const result = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES
+        );
+        if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+          console.log("[SafeLink] Wi-Fi Direct skipped: nearby Wi-Fi devices permission denied.");
+          return;
+        }
+      }
+      await WifiP2pManager.initialize();
+    } catch (err) {
+      console.log("[SafeLink] Wi-Fi P2P unavailable, continuing with BLE only:", err?.message);
+    }
+  }
+
   async waitForBluetooth(manager) {
     const deadline = Date.now() + BLUETOOTH_READY_WAIT_MS;
     let state = await manager.state();
@@ -94,13 +115,7 @@ class NodeDiscovery {
     try {
       if (Platform.OS === "android") {
         if (!(await this.requestAndroidPermissions())) return;
-        if (WifiP2pManager && WifiP2pManager.initialize) {
-          try {
-            await WifiP2pManager.initialize();
-          } catch (err) {
-            console.log("[SafeLink] Wi-Fi P2P unavailable, continuing with BLE only:", err?.message);
-          }
-        }
+        await this.initWifiP2p();
       }
 
       const state = await this.waitForBluetooth(manager);
