@@ -10,6 +10,14 @@
 // npm install only hoists hoistable deps and removes/skips the rest, so these
 // symlinks keep getting pruned on every `npm install`. Recreate them here as
 // a postinstall step instead of fixing it by hand each time.
+//
+// WARNING: if these symlinks already exist when `npm install` runs, npm sees
+// them as extraneous and deletes the *hoisted packages they point at* (the
+// repo-root node_modules/@react-native* directories end up empty). Remove the
+// symlinks before installing, and this script will recreate them afterwards:
+//
+//   rm app/node_modules/react-native app/node_modules/@react-native \
+//      app/node_modules/@react-native-community && npm install
 
 const fs = require("fs");
 const path = require("path");

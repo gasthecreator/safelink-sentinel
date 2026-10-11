@@ -1,173 +1,247 @@
 // app/services/mesh/NodeDiscovery.js
+// Finds nearby SafeLink nodes over BLE and advertises this one.
+//
+//   scan    -> devices advertising SERVICE_UUID (react-native-ble-plx)
+//   resolve -> connect once, read the node's public profile, verify its ID is
+//              derived from its signing key, remember it as a peer
+//   advertise -> native peripheral module (see BleTransport)
 
 import { Platform, PermissionsAndroid } from "react-native";
-import { storePeer } from "../storage/PeerCache.js";
-import { v4 as uuidv4 } from "uuid";
+import { storePeer, removeOldPeers } from "../storage/PeerCache.js";
+import IdentityManager from "../crypto/IdentityManager.js";
+import { getBleManager } from "../ble/bleManager.js";
+import BleTransport from "../ble/BleTransport.js";
+import { SERVICE_UUID } from "../ble/BleProtocol.js";
 
-// Conditional BLE manager (only on native platforms)
-let BleManager = null;
 let WifiP2pManager = null;
-let bleManager = null;
-
 try {
   if (Platform.OS !== "web") {
-    BleManager = require("react-native-ble-plx").BleManager;
     WifiP2pManager = require("react-native-wifi-p2p").default;
-    bleManager = new BleManager();
   }
 } catch (error) {
-  console.log("[NodeDiscovery] BLE/WiFi modules not available (web/emulator mode)");
+  console.log("[NodeDiscovery] Wi-Fi P2P module not available");
 }
+
+const PEER_TTL_MS = 90 * 1000; // a peer unseen for this long drops off the live list
+const PROFILE_REFRESH_MS = 60 * 1000; // re-read a known device's profile at most this often
+const MAX_HANDSHAKES_PER_SCAN = 8;
+const BLUETOOTH_READY_WAIT_MS = 5000;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 class NodeDiscovery {
   constructor() {
-    this.peers = [];
-    this.listeners = []; // listeners for live updates
-    this.deviceId = uuidv4(); // unique installation ID
-    this.scanTimeout = 15000; // default scan duration
+    this.peerMap = new Map(); // node id -> peer
+    this.bleToPeer = new Map(); // BLE address -> { id, resolvedAt }
+    this.listeners = [];
+    this.deviceId = null; // set in init() from IdentityManager
+    this.scanTimeout = 10000;
+    this.ready = false; // permissions granted and Bluetooth powered on
+    this.scanning = false;
+    this.autoTimer = null;
+  }
+
+  /** True when a real BLE stack is present (false on web and in builds without it). */
+  get bleAvailable() {
+    return !!getBleManager();
+  }
+
+  // Ask for the runtime permissions this Android version actually has.
+  // BLUETOOTH_SCAN/CONNECT/ADVERTISE only exist on Android 12+ (API 31); before
+  // that, BLE scanning is gated by ACCESS_FINE_LOCATION.
+  async requestAndroidPermissions() {
+    const P = PermissionsAndroid.PERMISSIONS;
+    const modern = Platform.Version >= 31;
+    const required = modern ? [P.BLUETOOTH_SCAN, P.BLUETOOTH_CONNECT] : [P.ACCESS_FINE_LOCATION];
+    // Advertising is optional: without it we can still scan and send.
+    const optional = modern ? [P.BLUETOOTH_ADVERTISE, P.ACCESS_FINE_LOCATION] : [];
+
+    const granted = await PermissionsAndroid.requestMultiple([...required, ...optional]);
+    const missing = required.filter((perm) => granted[perm] !== PermissionsAndroid.RESULTS.GRANTED);
+    if (missing.length > 0) {
+      console.log(
+        `⚠️ Bluetooth permission denied (API ${Platform.Version}): ${missing.join(", ")}`
+      );
+      return false;
+    }
+    if (modern && granted[P.BLUETOOTH_ADVERTISE] !== PermissionsAndroid.RESULTS.GRANTED) {
+      console.log("[SafeLink] ⚠️ Advertise permission denied - this node can scan but not be found.");
+    }
+    return true;
+  }
+
+  async waitForBluetooth(manager) {
+    const deadline = Date.now() + BLUETOOTH_READY_WAIT_MS;
+    let state = await manager.state();
+    while (state !== "PoweredOn" && Date.now() < deadline) {
+      await sleep(500);
+      state = await manager.state();
+    }
+    return state;
   }
 
   // Initialize Bluetooth & Wi-Fi services
   async init() {
     console.log("[SafeLink] Initializing NodeDiscovery...");
-    
-    // Web/emulator mode - use simulation
-    if (Platform.OS === "web" || !bleManager) {
-      console.log("[SafeLink] Web/emulator mode - simulation available");
+    this.deviceId = await IdentityManager.getDeviceId();
+
+    const manager = getBleManager();
+    if (!manager) {
+      console.log("[SafeLink] BLE not available (web/unsupported build) - simulation only");
       return;
     }
-    
+
     try {
       if (Platform.OS === "android") {
-        // BLUETOOTH_SCAN/CONNECT only exist on Android 12+ (API 31). On older
-        // versions BLE scanning is gated by ACCESS_FINE_LOCATION instead (the
-        // legacy BLUETOOTH/BLUETOOTH_ADMIN permissions are install-time).
-        const P = PermissionsAndroid.PERMISSIONS;
-        const required =
-          Platform.Version >= 31
-            ? [P.BLUETOOTH_SCAN, P.BLUETOOTH_CONNECT]
-            : [P.ACCESS_FINE_LOCATION];
-        const optional = Platform.Version >= 31 ? [P.ACCESS_FINE_LOCATION] : [];
-
-        const granted = await PermissionsAndroid.requestMultiple([
-          ...required,
-          ...optional,
-        ]);
-        const missing = required.filter(
-          (perm) => granted[perm] !== PermissionsAndroid.RESULTS.GRANTED
-        );
-        if (missing.length > 0) {
-          console.log(
-            `⚠️ Bluetooth permission denied (API ${Platform.Version}): ${missing.join(", ")}`
-          );
-          return;
-        }
-
+        if (!(await this.requestAndroidPermissions())) return;
         if (WifiP2pManager && WifiP2pManager.initialize) {
-          await WifiP2pManager.initialize();
+          try {
+            await WifiP2pManager.initialize();
+          } catch (err) {
+            console.log("[SafeLink] Wi-Fi P2P unavailable, continuing with BLE only:", err?.message);
+          }
         }
       }
 
-      if (bleManager && bleManager.state) {
-        const state = await bleManager.state();
-        if (state !== "PoweredOn") {
-          console.log("⚠️ Bluetooth is not enabled. Please turn it on.");
-          return;
-        }
+      const state = await this.waitForBluetooth(manager);
+      if (state !== "PoweredOn") {
+        console.log(`⚠️ Bluetooth is not enabled (state: ${state}). Please turn it on.`);
+        return;
       }
 
+      this.ready = true;
+      await this.advertisePresence();
       console.log("[SafeLink] NodeDiscovery initialized ✅");
     } catch (err) {
       console.error("❌ Initialization error:", err);
-      console.log("[SafeLink] Falling back to simulation mode");
     }
   }
-  // Simulate peer discovery for web or emulator testing
-    async simulateDiscovery() {
-        console.log("[SafeLink] 🔁 Simulating discovery...");
-    
-        const fakePeers = [
-        { id: "11:22:33:44:55:66", name: "Alpha Node", rssi: -45, distance: "1.0", type: "BLE", timestamp: new Date().toISOString() },
-        { id: "77:88:99:AA:BB:CC", name: "Bravo Node", rssi: -60, distance: "3.8", type: "BLE", timestamp: new Date().toISOString() },
-        { id: "DE:AD:BE:EF:FE:ED", name: "Charlie Node", rssi: -75, distance: "9.2", type: "BLE", timestamp: new Date().toISOString() },
-        ];
-    
-        fakePeers.forEach((peer) => {
-        this.peers.push(peer);
-        this.notifyListeners(peer);
-        });
-    
-        console.log(`[SafeLink] 🧠 Simulation complete (${fakePeers.length} peers).`);
-        return fakePeers;
-    }
-    
-  
-  // Begin scanning for nearby peers
+
+  // Development-only stand-in for builds with no BLE stack. Never used when
+  // real BLE is present, and its peers are flagged so nothing mistakes them for real nodes.
+  async simulateDiscovery() {
+    console.log("[SafeLink] 🔁 Simulating discovery (no BLE stack)...");
+    const now = new Date().toISOString();
+    const fakePeers = [
+      { id: "sim-alpha", name: "Alpha Node", rssi: -45, distance: "1.0" },
+      { id: "sim-bravo", name: "Bravo Node", rssi: -60, distance: "3.8" },
+      { id: "sim-charlie", name: "Charlie Node", rssi: -75, distance: "9.2" },
+    ].map((p) => ({ ...p, type: "BLE", simulated: true, timestamp: now }));
+
+    fakePeers.forEach((peer) => {
+      this.peerMap.set(peer.id, peer);
+      this.notifyListeners(peer);
+    });
+    return fakePeers;
+  }
+
+  // Scan for SafeLink nodes, then resolve each new one's identity.
   async startDiscovery() {
     console.log("[SafeLink] Starting device discovery...");
-    this.peers = []; // reset session
 
-    // Web/emulator mode - use simulation
-    if (Platform.OS === "web" || !bleManager) {
-      console.log("[SafeLink] Using simulation mode for discovery");
-      return this.simulateDiscovery();
+    const manager = getBleManager();
+    if (!manager) return this.simulateDiscovery();
+    if (!this.ready) {
+      console.log("[SafeLink] Discovery skipped: Bluetooth not ready (permissions or power).");
+      return this.getPeers();
     }
+    if (this.scanning) return this.getPeers();
 
+    this.scanning = true;
     try {
-      if (!bleManager || !bleManager.startDeviceScan) {
-        console.log("[SafeLink] BLE manager not available, using simulation");
-        return this.simulateDiscovery();
-      }
-
-      bleManager.startDeviceScan(null, null, (error, device) => {
-        if (error) {
-          console.log("❌ BLE Scan error:", error.message);
-          return;
-        }
-
-        if (!device?.id) return;
-
-        // Calculate estimated distance (in meters) from RSSI
-        const distance = device.rssi
-          ? Math.pow(10, ((-69 - device.rssi) / (10 * 2)))
-          : null;
-
-        const newPeer = {
-          id: device.id,
-          name: device.name || "Unknown Device",
-          rssi: device.rssi,
-          distance: distance ? distance.toFixed(2) : "N/A",
-          type: "BLE",
-          timestamp: new Date().toISOString(),
-        };
-
-        // Save unique peers
-        if (!this.peers.find((p) => p.id === newPeer.id)) {
-          this.peers.push(newPeer);
-          storePeer(newPeer);
-          this.notifyListeners(newPeer);
-          console.log(
-            `[SafeLink] ✅ Peer found: ${newPeer.name} (${newPeer.id}) | RSSI: ${
-              newPeer.rssi
-            } | ~${newPeer.distance}m`
-          );
-        }
-      });
-
-      // Stop scan after timeout
-      setTimeout(() => {
-        if (bleManager && bleManager.stopDeviceScan) {
-          bleManager.stopDeviceScan();
-        }
-        console.log(
-          `[SafeLink] Discovery stopped ⏹️. ${this.peers.length} peers found.`
-        );
-      }, this.scanTimeout);
+      const found = await this.scan(manager);
+      await this.resolveCandidates(found);
+      await removeOldPeers(2);
+      console.log(`[SafeLink] Discovery finished ⏹️. ${this.getPeers().length} peers.`);
     } catch (err) {
       console.error("Discovery failed:", err);
-      // Fallback to simulation
-      return this.simulateDiscovery();
+    } finally {
+      this.scanning = false;
     }
+    return this.getPeers();
+  }
+
+  // Collect advertising SafeLink devices for one scan window.
+  async scan(manager) {
+    const found = new Map(); // BLE address -> { rssi, name }
+    manager.startDeviceScan([SERVICE_UUID], { allowDuplicates: false }, (error, device) => {
+      if (error) {
+        console.log("❌ BLE Scan error:", error.message);
+        return;
+      }
+      if (device?.id) found.set(device.id, { rssi: device.rssi, name: device.name });
+    });
+    try {
+      await sleep(this.scanTimeout);
+    } finally {
+      manager.stopDeviceScan();
+    }
+    return found;
+  }
+
+  async resolveCandidates(found) {
+    const now = Date.now();
+    let handshakes = 0;
+    for (const [bleId, info] of found) {
+      const known = this.bleToPeer.get(bleId);
+      const peer = known && this.peerMap.get(known.id);
+      if (peer && now - known.resolvedAt < PROFILE_REFRESH_MS) {
+        await this.upsertPeer({ ...peer, rssi: info.rssi }); // still here; refresh signal strength
+        continue;
+      }
+      if (handshakes >= MAX_HANDSHAKES_PER_SCAN) continue;
+      handshakes += 1;
+      try {
+        const profile = await BleTransport.readProfile(bleId);
+        if (profile.id === this.deviceId) continue; // our own advertisement
+        this.bleToPeer.set(bleId, { id: profile.id, resolvedAt: now });
+        await this.upsertPeer(this.buildPeer(profile, bleId, info));
+      } catch (err) {
+        console.log(`[SafeLink] Could not resolve ${bleId}: ${err.message}`);
+      }
+    }
+  }
+
+  buildPeer(profile, bleId, info) {
+    // Rough distance (m) from RSSI using a log-distance model at -69 dBm @ 1 m.
+    const distance = info.rssi ? Math.pow(10, (-69 - info.rssi) / 20).toFixed(2) : "N/A";
+    return {
+      id: profile.id,
+      bleId,
+      name: info.name || `Node ${profile.id.slice(0, 6)}`,
+      rssi: info.rssi,
+      distance,
+      type: "BLE",
+      sign: profile.sign,
+      box: profile.box,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  async upsertPeer(peer) {
+    const fresh = { ...peer, timestamp: new Date().toISOString() };
+    const isNew = !this.peerMap.has(fresh.id);
+    this.peerMap.set(fresh.id, fresh);
+    await storePeer(fresh);
+    this.notifyListeners(fresh);
+    if (isNew) {
+      console.log(
+        `[SafeLink] ✅ Peer found: ${fresh.name} (${fresh.id.slice(0, 8)}) | RSSI: ${fresh.rssi} | ~${fresh.distance}m`
+      );
+    }
+  }
+
+  // Rescan on an interval so the peer list tracks who is actually nearby.
+  startAutoDiscovery(intervalMs = 30000) {
+    if (this.autoTimer || !this.bleAvailable) return;
+    const tick = () => this.startDiscovery().catch(() => {});
+    tick();
+    this.autoTimer = setInterval(tick, intervalMs);
+  }
+
+  stopAutoDiscovery() {
+    if (this.autoTimer) clearInterval(this.autoTimer);
+    this.autoTimer = null;
   }
 
   // Listen for peer discoveries in real time
@@ -175,49 +249,54 @@ class NodeDiscovery {
     if (typeof callback === "function") {
       this.listeners.push(callback);
     }
+    return () => {
+      this.listeners = this.listeners.filter((cb) => cb !== callback);
+    };
   }
 
   notifyListeners(peer) {
     this.listeners.forEach((cb) => cb(peer));
   }
 
-  // Broadcast your own presence
+  // Start advertising this node so others can find it. Returns this node's ID.
   async advertisePresence() {
-    console.log(`[SafeLink] Broadcasting device ID: ${this.deviceId}`);
-    // TODO: integrate native BLE advertiser or Wi-Fi Direct beacon
+    this.deviceId = this.deviceId || (await IdentityManager.getDeviceId());
+    const advertising = await BleTransport.start();
+    console.log(
+      `[SafeLink] ${advertising ? "Advertising" : "Not advertising"} as ${this.deviceId.slice(0, 8)}`
+    );
     return this.deviceId;
   }
 
-  // Retrieve current peer list
+  // Peers seen recently (stale ones age out of the live list)
   getPeers() {
-    return this.peers;
+    const cutoff = Date.now() - PEER_TTL_MS;
+    return [...this.peerMap.values()].filter(
+      (p) => p.simulated || new Date(p.timestamp).getTime() >= cutoff
+    );
   }
 
   // Log session analytics
   logSession() {
-    const totalPeers = this.peers.length;
+    const peers = this.getPeers();
+    const totalPeers = peers.length;
     const avgRSSI =
       totalPeers > 0
-        ? (
-            this.peers.reduce((sum, p) => sum + (p.rssi || 0), 0) / totalPeers
-          ).toFixed(2)
+        ? (peers.reduce((sum, p) => sum + (p.rssi || 0), 0) / totalPeers).toFixed(2)
         : 0;
 
-    console.log(
-      `[SafeLink] Session Summary → Peers: ${totalPeers}, Avg RSSI: ${avgRSSI}`
-    );
+    console.log(`[SafeLink] Session Summary → Peers: ${totalPeers}, Avg RSSI: ${avgRSSI}`);
 
     return { totalPeers, avgRSSI, timestamp: new Date().toISOString() };
   }
 
   // Stop scanning and cleanup
   async stop() {
-    if (bleManager && bleManager.stopDeviceScan) {
-      bleManager.stopDeviceScan();
-    }
+    this.stopAutoDiscovery();
+    getBleManager()?.stopDeviceScan();
+    await BleTransport.stop();
     console.log("[SafeLink] NodeDiscovery stopped and cleaned up.");
   }
 }
 
 export default new NodeDiscovery();
-

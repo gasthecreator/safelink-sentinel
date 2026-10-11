@@ -15,6 +15,7 @@ class AlertManager {
     this.alertInterval = 15000; // 15s health check
     this.autoAlertCooldown = 10 * 60 * 1000; // re-notify at most every 10 min while a condition persists
     this.autoMode = true;
+    this.incomingAlerts = []; // alerts received from other nodes (non-relief)
     this.healthTimer = null;
     this.checking = false;
     this.conditionState = new Map(); // alert type -> timestamp of last auto alert while condition holds
@@ -232,6 +233,56 @@ class AlertManager {
 
   async getOpenReliefRequests() {
     return ReliefRequestStore.getOpenRequests();
+  }
+
+  // ===== INCOMING (from other nodes) =====
+
+  // Turn a verified message received over the mesh into something the UI shows.
+  async handleIncoming(msg) {
+    const firstLine = String(msg.content || "").split("\n")[0];
+    const priority = msg.meta?.priority || "normal";
+
+    if (msg.meta?.type === "relief") {
+      const id = msg.meta.reliefId || msg.id;
+      if (!(await ReliefRequestStore.getRequest(id))) {
+        await ReliefRequestStore.createRequest({
+          id,
+          requesterId: msg.from,
+          type: "relief",
+          title: firstLine.replace(/^\[RELIEF\]\s*/, "") || "Relief request",
+          description: msg.content,
+          items: [],
+          priority,
+          status: "open",
+          createdAt: msg.sentAt,
+          updatedAt: msg.receivedAt,
+          remote: true,
+        });
+      }
+      return;
+    }
+
+    this.incomingAlerts.unshift({
+      id: `in-${msg.id}`,
+      title: firstLine || "Alert",
+      description: msg.content,
+      priority,
+      senderId: msg.from,
+      timestamp: msg.receivedAt,
+      remote: true,
+    });
+    this.incomingAlerts = this.incomingAlerts.slice(0, 50);
+    console.log(`[SafeLink][AlertManager] 📥 Alert from ${msg.from.slice(0, 8)}: ${firstLine}`);
+  }
+
+  // Open relief requests (ours and received) plus received alerts, newest first.
+  async getAlertFeed() {
+    const relief = await ReliefRequestStore.getOpenRequests();
+    return [...relief, ...this.incomingAlerts].sort(
+      (a, b) =>
+        new Date(b.updatedAt || b.timestamp || 0).getTime() -
+        new Date(a.updatedAt || a.timestamp || 0).getTime()
+    );
   }
 
   async markReliefStatus(id, status) {
