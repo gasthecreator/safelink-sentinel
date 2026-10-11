@@ -8,7 +8,7 @@ let AsyncStorage = global.AsyncStorage;
 if (!AsyncStorage) {
   try {
     // React Native environment
-    AsyncStorage = (await import("@react-native-async-storage/async-storage")).default;
+    AsyncStorage = require("@react-native-async-storage/async-storage").default;
   } catch {
     // Node test fallback
     console.log("[SafeLink] ⚙️ Using in-memory AsyncStorage mock in Encryptor");

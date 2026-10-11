@@ -1,0 +1,12 @@
+# Xcode / CocoaPods
+ios/Pods/
+ios/.xcode.env.local
+**/xcuserdata/
+*.xcuserstate
+
+# Android / Gradle
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+*.apk
