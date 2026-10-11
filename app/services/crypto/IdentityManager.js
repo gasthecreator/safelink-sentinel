@@ -6,13 +6,17 @@
 import nacl from "tweetnacl";
 import { bytesToBase64, base64ToBytes, bytesToHex } from "../ble/codec.js";
 
-let AsyncStorage = global.AsyncStorage;
+import { getSecret, setSecret, isSecure } from "./SecureStore.js";
 
+// Before private keys moved to the keychain, the identity lived in AsyncStorage.
+const LEGACY_STORAGE_KEY = "@safelink_identity";
+const IDENTITY_VERSION = 2;
+
+let AsyncStorage = global.AsyncStorage;
 if (!AsyncStorage) {
   try {
     AsyncStorage = require("@react-native-async-storage/async-storage").default;
   } catch {
-    console.log("[SafeLink] ⚙️ Using in-memory AsyncStorage mock in IdentityManager");
     AsyncStorage = {
       storage: {},
       async setItem(key, value) { this.storage[key] = value; },
@@ -22,35 +26,65 @@ if (!AsyncStorage) {
   }
 }
 
-const IDENTITY_STORAGE_KEY = "@safelink_identity";
-const IDENTITY_VERSION = 2;
-
 /** Stable, self-certifying device ID for a signing public key (base64). */
 export function deriveDeviceId(signPublicKeyB64) {
   const digest = nacl.hash(base64ToBytes(signPublicKeyB64));
   return bytesToHex(digest.subarray(0, 16));
 }
 
+function parseIdentity(raw) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed.version === IDENTITY_VERSION ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 class IdentityManager {
   constructor() {
     this.identity = null;
+    this.loading = null;
   }
 
-  async getOrCreateIdentity() {
-    if (this.identity) return this.identity;
+  // Concurrent callers (relay, envelopes, discovery all ask at startup) must
+  // share one load, or two of them could each create a different identity.
+  getOrCreateIdentity() {
+    if (this.identity) return Promise.resolve(this.identity);
+    if (!this.loading) {
+      this.loading = this.loadOrCreate()
+        .then((identity) => {
+          this.identity = identity;
+          return identity;
+        })
+        .finally(() => {
+          this.loading = null;
+        });
+    }
+    return this.loading;
+  }
 
-    const stored = await AsyncStorage.getItem(IDENTITY_STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed.version === IDENTITY_VERSION) {
-          this.identity = parsed;
-          console.log("[SafeLink] 🆔 Loaded existing device identity");
-          return this.identity;
-        }
-        console.log("[SafeLink] 🆔 Upgrading legacy identity to keypairs");
-      } catch {
-        console.log("[SafeLink] 🆔 Stored identity unreadable, regenerating");
+  async loadOrCreate() {
+    let existing = null;
+    try {
+      existing = parseIdentity(await getSecret());
+    } catch (error) {
+      console.log(`[SafeLink] ❌ Could not read secure storage: ${error.message}`);
+    }
+    if (existing) {
+      console.log("[SafeLink] 🆔 Loaded existing device identity");
+      return existing;
+    }
+
+    // One-time move of an identity saved by an earlier build into the keychain.
+    if (isSecure) {
+      const legacy = parseIdentity(await AsyncStorage.getItem(LEGACY_STORAGE_KEY));
+      if (legacy) {
+        await setSecret(JSON.stringify(legacy));
+        await AsyncStorage.removeItem(LEGACY_STORAGE_KEY); // only after the keychain write succeeded
+        console.log("[SafeLink] 🆔 Moved device identity into the keychain");
+        return legacy;
       }
     }
 
@@ -65,8 +99,7 @@ class IdentityManager {
       boxPublicKey: bytesToBase64(box.publicKey),
       boxSecretKey: bytesToBase64(box.secretKey),
     };
-    await AsyncStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(identity));
-    this.identity = identity;
+    await setSecret(JSON.stringify(identity));
     console.log("[SafeLink] 🆔 Created new device identity");
     return identity;
   }
