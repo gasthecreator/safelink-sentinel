@@ -13,7 +13,11 @@ class AlertManager {
     this.alertHistory = [];
     this.activeAlerts = [];
     this.alertInterval = 15000; // 15s health check
+    this.autoAlertCooldown = 10 * 60 * 1000; // re-notify at most every 10 min while a condition persists
     this.autoMode = true;
+    this.healthTimer = null;
+    this.checking = false;
+    this.conditionState = new Map(); // alert type -> timestamp of last auto alert while condition holds
   }
 
   async init() {
@@ -24,34 +28,58 @@ class AlertManager {
 
   // ===== AUTO ALERTS BASED ON HEALTH =====
 
-  async monitorHealthLoop() {
-    setInterval(async () => {
-      if (!this.autoMode) return;
+  monitorHealthLoop() {
+    if (this.healthTimer) return; // already running (init() can be called more than once)
+    this.healthTimer = setInterval(() => this.checkHealth(), this.alertInterval);
+  }
 
+  async checkHealth() {
+    if (!this.autoMode || this.checking) return; // skip overlapping runs
+    this.checking = true;
+    try {
       const health = await HealthMonitor.collect();
 
-      if (health.reliabilityScore === "Critical") {
-        console.log(
-          "[SafeLink][AlertManager] ⚠️ Critical network degradation detected!"
-        );
-        await this.triggerAutoAlert({
-          type: "network_failure",
-          message: "Connectivity failure detected in your area.",
-          priority: "critical",
-          radiusKm: 50,
-        });
-      }
+      await this.evaluateCondition(health.reliabilityScore === "Critical", {
+        type: "network_failure",
+        message: "Connectivity failure detected in your area.",
+        priority: "critical",
+        radiusKm: 50,
+      });
 
-      if (health.syncLag > 10) {
-        console.log("[SafeLink][AlertManager] 🕒 Message backlog detected!");
-        await this.triggerAutoAlert({
-          type: "sync_backlog",
-          message: "Mesh congestion detected. Delays possible.",
-          priority: "high",
-          radiusKm: 20,
-        });
+      await this.evaluateCondition(health.syncLag > 10, {
+        type: "sync_backlog",
+        message: "Mesh congestion detected. Delays possible.",
+        priority: "high",
+        radiusKm: 20,
+      });
+    } catch (err) {
+      console.error("[SafeLink][AlertManager] ❌ Health check failed:", err);
+    } finally {
+      this.checking = false;
+    }
+  }
+
+  // Fire an auto alert when a condition starts, then at most once per cooldown
+  // while it persists. When it clears, drop its active alert so it can fire again.
+  async evaluateCondition(isActive, alert) {
+    const lastFired = this.conditionState.get(alert.type);
+
+    if (!isActive) {
+      if (lastFired !== undefined) {
+        this.conditionState.delete(alert.type);
+        this.activeAlerts = this.activeAlerts.filter((a) => a.type !== alert.type);
+        console.log(`[SafeLink][AlertManager] ✅ Condition cleared: ${alert.type}`);
       }
-    }, this.alertInterval);
+      return;
+    }
+
+    if (lastFired !== undefined && Date.now() - lastFired < this.autoAlertCooldown) {
+      return;
+    }
+
+    console.log(`[SafeLink][AlertManager] ⚠️ Condition detected: ${alert.type}`);
+    this.conditionState.set(alert.type, Date.now());
+    await this.triggerAutoAlert(alert);
   }
 
   // ===== MANUAL ALERT =====
