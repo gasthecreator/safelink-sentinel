@@ -373,6 +373,8 @@ GET    /api/messages               # Get messages
 
 For detailed API documentation, see [docs/api-endpoints.md](docs/api-endpoints.md).
 
+To test the mesh on real phones (BLE cannot be tested on simulators or in CI), see [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md).
+
 ## 📁 Project Structure
 
 ```
