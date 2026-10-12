@@ -18,12 +18,25 @@ import MessageCard from "../components/MessageCard";
 import OfflineSyncModal from "../components/OfflineSyncModal";
 import MeshManager from "../services/mesh/MeshManager";
 import NodeDiscovery from "../services/mesh/NodeDiscovery";
+import Outbox from "../services/mesh/Outbox";
+
+// "5 min ago"-style label; falls back to "Just now" when there is no usable time.
+function formatTime(value) {
+  const ms = value ? Date.parse(value) : NaN;
+  if (Number.isNaN(ms)) return "Just now";
+  const minutes = Math.floor((Date.now() - ms) / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours} h ago` : `${Math.floor(hours / 24)} d ago`;
+}
 
 export default function MeshHomeScreen({ navigation }) {
   const [peers, setPeers] = useState([]);
   const [health, setHealth] = useState({ reliabilityScore: "Critical", successRate: 0 });
   const [offlineModal, setOfflineModal] = useState(false);
   const [queuedCount, setQueuedCount] = useState(0);
+  const [waitingCount, setWaitingCount] = useState(0);
   const [alerts, setAlerts] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
 
@@ -149,6 +162,9 @@ export default function MeshHomeScreen({ navigation }) {
         }
       });
 
+      // Messages we sent that no one has received yet
+      setWaitingCount(Outbox.getStats().ownWaiting);
+
       // Update alerts
       MeshManager.getAlertFeed().then((reliefRequests) => {
         if (reliefRequests && Array.isArray(reliefRequests)) {
@@ -168,13 +184,13 @@ export default function MeshHomeScreen({ navigation }) {
       id: alert.id || `alert-${Date.now()}`,
       title: alert.title || alert.message || "Alert",
       description: alert.description || alert.body || alert.message || "",
-      address: alert.address || alert.locationLabel || "Location unknown",
+      address: alert.address || alert.locationLabel || null,
       location: alert.location || (alert.latitude && alert.longitude ? {
         latitude: alert.latitude,
         longitude: alert.longitude,
       } : null),
       priority: alert.priority || "normal",
-      time: alert.time || alert.timestamp || "Just now",
+      time: alert.time || formatTime(alert.timestamp || alert.updatedAt || alert.createdAt),
       reliefId: alert.reliefId || null,
     };
   };
@@ -210,6 +226,13 @@ export default function MeshHomeScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <ConnectionStatus health={health} peersCount={peers.length} />
+
+          {waitingCount > 0 && (
+            <Text style={styles.waitingText}>
+              {waitingCount} message{waitingCount === 1 ? "" : "s"} waiting. Will send automatically
+              when a device comes into range.
+            </Text>
+          )}
 
           <View style={styles.quickActions}>
             <Text style={styles.sectionTitle}>Quick actions</Text>
@@ -276,7 +299,7 @@ export default function MeshHomeScreen({ navigation }) {
             ) : (
               alerts.slice(0, 10).map((alert) => {
                 const formatted = formatAlert(alert);
-                if (!formatted || !formatted.location) return null;
+                if (!formatted) return null;
                 
                 return (
                   <TouchableOpacity
@@ -361,6 +384,9 @@ export default function MeshHomeScreen({ navigation }) {
               </>
             )}
           </View>
+          <TouchableOpacity onPress={() => navigation.navigate("Diagnostics")}>
+            <Text style={styles.diagnosticsLink}>Diagnostics</Text>
+          </TouchableOpacity>
         </ScrollView>
       </LinearGradient>
     </SafeAreaView>
@@ -368,6 +394,21 @@ export default function MeshHomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  waitingText: {
+    color: "#B45309",
+    backgroundColor: "#FEF3C7",
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 10,
+    fontSize: 13,
+  },
+  diagnosticsLink: {
+    color: "#64748B",
+    textAlign: "center",
+    fontSize: 13,
+    marginTop: 24,
+    textDecorationLine: "underline",
+  },
   safeArea: {
     flex: 1,
     backgroundColor: "#FFFFFF",
