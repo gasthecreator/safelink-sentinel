@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import * as Animatable from "react-native-animatable";
 import LinearGradient from "react-native-linear-gradient";
+import { getPositionForAlert } from "../services/location/LocationService";
+import { describeLocationOutcome } from "../services/location/position";
 
 const PRIORITIES = ["critical", "high", "normal", "low"];
 
@@ -28,6 +30,7 @@ export default function SendMessageScreen({ route, navigation }) {
   const [priority, setPriority] = useState("normal");
   const [includeLocation, setIncludeLocation] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [sent, setSent] = useState(false);
   const [resultText, setResultText] = useState("Message sent!");
   const [delivered, setDelivered] = useState(true);
@@ -62,6 +65,19 @@ export default function SendMessageScreen({ route, navigation }) {
       // Get sender ID
       const senderId = await IdentityManager.getMyId();
       
+      // GPS needs no internet, but it can take a while to get a first fix, so the
+      // button says what it is doing. A failure here never stops the message.
+      let fix = null;
+      if (includeLocation) {
+        setLocating(true);
+        try {
+          fix = await getPositionForAlert();
+        } finally {
+          setLocating(false);
+        }
+      }
+      const position = fix?.position || null;
+
       let summary;
       if (mode === "relief") {
         // Create relief request and alert
@@ -69,12 +85,13 @@ export default function SendMessageScreen({ route, navigation }) {
           title: text.split("\n")[0].slice(0, 80),
           description: text,
           priority,
+          location: position,
         });
         summary = result?.summary;
         console.log("[SendMessageScreen] Relief request created:", result?.request?.id);
       } else {
         // Broadcast status update
-        summary = await MeshManager.broadcastAlert(senderId, text, { priority });
+        summary = await MeshManager.broadcastAlert(senderId, text, { priority, position });
         console.log("[SendMessageScreen] Alert broadcast:", summary);
       }
 
@@ -84,20 +101,19 @@ export default function SendMessageScreen({ route, navigation }) {
       const reached = summary?.success || 0;
       const ok = reached > 0;
       setDelivered(ok);
-      setResultText(
-        ok
-          ? `Delivered to ${reached} nearby device${reached === 1 ? "" : "s"}. It will also go to devices that come into range later.`
-          : summary?.queued
-          ? "Not delivered yet: no one is in range. It is saved and will be sent automatically when a device comes into range (kept for 24 hours)."
-          : "No nearby devices in range. Nothing was sent."
-      );
+      const deliveryText = ok
+        ? `Delivered to ${reached} nearby device${reached === 1 ? "" : "s"}. It will also go to devices that come into range later.`
+        : summary?.queued
+        ? "Not delivered yet: no one is in range. It is saved and will be sent automatically when a device comes into range (kept for 24 hours)."
+        : "No nearby devices in range. Nothing was sent.";
+      setResultText(includeLocation ? `${deliveryText} ${describeLocationOutcome(fix)}` : deliveryText);
       setSent(true);
       setSubmitting(false);
 
       setTimeout(() => {
         setSent(false);
         if (ok) navigation.goBack();
-      }, ok ? 1500 : 4000);
+      }, ok ? 3500 : 6000);
     } catch (error) {
       console.error("[SendMessageScreen] Send error:", error);
       setSubmitting(false);
@@ -176,7 +192,7 @@ export default function SendMessageScreen({ route, navigation }) {
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.label}>Include location (if available)</Text>
+          <Text style={styles.label}>Include my location</Text>
           <Switch
             value={includeLocation}
             onValueChange={setIncludeLocation}
@@ -184,6 +200,11 @@ export default function SendMessageScreen({ route, navigation }) {
             thumbColor={includeLocation ? "#3B82F6" : "#F1F5F9"}
           />
         </View>
+        <Text style={styles.locationNote}>
+          {includeLocation
+            ? "Uses GPS, which works without internet. Every nearby phone that receives your message can see where you are."
+            : "Your message will be sent without a location."}
+        </Text>
 
         <TouchableOpacity
           style={[styles.button, submitting && styles.buttonDisabled]}
@@ -191,7 +212,7 @@ export default function SendMessageScreen({ route, navigation }) {
           onPress={handleSubmit}
         >
           <Text style={styles.buttonText}>
-            {submitting ? "Sending..." : "Send message"}
+            {locating ? "Getting your location..." : submitting ? "Sending..." : "Send message"}
           </Text>
         </TouchableOpacity>
 
@@ -207,6 +228,7 @@ export default function SendMessageScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  locationNote: { color: "#64748B", fontSize: 12.5, marginTop: -6, marginBottom: 14, lineHeight: 17 },
   safeArea: {
     flex: 1,
     backgroundColor: "#FFFFFF",

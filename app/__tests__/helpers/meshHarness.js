@@ -60,6 +60,8 @@ function newDevice(network, name, store = {}) {
       inbox: [],
     };
     device.relay.onMessageReceived((m) => device.inbox.push(m));
+    // as MeshManager wires it: a verified message becomes an alert / relief request
+    device.relay.onMessageReceived((m) => device.alerts.handleIncoming(m).catch(() => {}));
   });
   return device;
 }

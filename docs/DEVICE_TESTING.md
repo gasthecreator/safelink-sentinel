@@ -86,11 +86,21 @@ maintainer's Mac. On another machine change it or pass
 4. Wait up to a minute. The home screen starts at "0 devices" and "Unstable
    connection". Each device should then list the other under **Nearby devices**
    and the count should read 1.
-5. On device A tap **Request help**, type a short message and send. The result
-   line on A should say it was delivered to 1 nearby device.
+5. On device A tap **Request help**, type a short message and send. The first
+   time, the phone asks for permission to use your location: allow it (outdoors
+   or by a window; GPS needs sky and may take a minute without internet). The
+   button reads "Getting your location..." while it waits. The result line on A
+   should say it was delivered to 1 nearby device and that your location was
+   attached, with its accuracy.
 6. On device B the message should appear under **Active alerts & requests**
-   within a few seconds. Tap it to read the full message.
-7. Optionally repeat from B to A, and try **Status update**.
+   within a few seconds, with the sender's position and how old that fix is.
+   Tap it to read the full message and the position; **Open in Maps app** opens
+   it in the phone's own maps app (which works offline if you have offline maps
+   downloaded there).
+7. Try it again with **Include my location** switched off: the message should
+   still arrive, with "No location was shared with this alert", and with the
+   permission declined: the sender is told it was sent without a location.
+8. Optionally repeat from B to A, and try **Status update**.
 
 ### Store-and-forward check (messages wait for someone to arrive)
 
@@ -167,7 +177,15 @@ Android also supports `adb logcat | grep ReactNativeJS`.
   any nearby phone can read and relay them. Nobody can alter or forge one, but
   anyone in range can read it. Direct encrypted messaging exists in the code but
   has no screen yet.
-- **Location is not attached to alerts yet**, so received alerts show text only.
+- **Location comes from GPS, with caveats.** GPS works without internet but needs
+  a view of the sky, and a first fix with no network can take minutes; indoors
+  there may be none. The app then falls back to the phone's last known position
+  and says how old it is, or sends without a position. If you grant only
+  "approximate" location the app warns that it is too rough to find someone.
+  Every phone that receives your message can read your position, and your
+  device ID never changes, so one phone's messages can be linked together.
+- **No in-app map yet.** The old map screen needs an online map provider, so
+  alerts show the position as text plus a button to open the phone's own maps app.
 - **Emulators and simulators:** the iOS simulator has no Bluetooth. Android
   emulators can scan, but a given emulator may not support advertising.
 - **Keys** are stored in the iOS Keychain and Android Keystore. On iOS they

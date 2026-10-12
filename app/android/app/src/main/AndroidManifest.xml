@@ -9,6 +9,11 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
+    <!-- GPS position for alerts. Android 12+ requires COARSE to be declared with FINE
+         so the user can choose "approximate" in the permission dialog. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <!-- Wi-Fi Direct (react-native-wifi-p2p declares none of these itself).
          NEARBY_WIFI_DEVICES is the Android 13+ runtime permission for it. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />

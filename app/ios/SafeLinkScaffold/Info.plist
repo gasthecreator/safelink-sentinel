@@ -34,7 +34,7 @@
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>SafeLink Mesh uses Bluetooth to find nearby phones and pass emergency messages between them without internet or cell service.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>SafeLink Mesh uses your location to estimate distance to nearby devices and coordinate disaster relief.</string>
+	<string>SafeLink Mesh uses your location to attach your position to a request for help, so people nearby can find you. This works without internet.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

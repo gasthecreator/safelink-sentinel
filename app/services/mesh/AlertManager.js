@@ -7,6 +7,7 @@ import MessageRelay from "./MessageRelay.js";
 import RouterAI from "../ai/RouterAI.js";
 import ReliefRequestStore from "../storage/ReliefRequestStore.js";
 import { v4 as uuidv4 } from "uuid";
+import { sanitizePosition } from "../location/position.js";
 
 class AlertManager {
   constructor() {
@@ -156,7 +157,8 @@ class AlertManager {
    *  - title, description
    *  - items: [{ name, qty, unit }]
    *  - amountNeeded, currency (optional)
-   *  - location: { lat, lon, address? }
+   *  - location: the sender's position { latitude, longitude, accuracyM, fixedAt }
+   *    (optional; the request still goes out without it)
    *  - priority: "critical" | "high" | "normal" | "low"
    *  - radiusKm: broadcast radius
    */
@@ -173,6 +175,7 @@ class AlertManager {
       radiusKm = 30,
     } = payload;
 
+    const position = sanitizePosition(location);
     const id = uuidv4();
     const request = {
       id,
@@ -183,7 +186,7 @@ class AlertManager {
       items,
       amountNeeded,
       currency,
-      location,
+      location: position,
       priority,
       status: "open", // open | partial | fulfilled | expired
       createdAt: new Date().toISOString(),
@@ -203,12 +206,10 @@ class AlertManager {
         ? `Key items: ${items.map((i) => `${i.name} x${i.qty}${i.unit || ""}`).join(", ")}`
         : "");
 
-    const center = location ? { lat: location.lat, lon: location.lon } : null;
-
     const summary = await GeoBroadcast.broadcast(senderId, text, {
-      center,
       radiusKm,
       priority,
+      position,
       extraMeta: { type: "relief", reliefId: id },
     });
 
@@ -217,7 +218,7 @@ class AlertManager {
       type: `relief_${type}`,
       message: text,
       priority,
-      center,
+      center: null,
       radiusKm,
       senderId,
       timestamp: new Date().toISOString(),
@@ -242,6 +243,8 @@ class AlertManager {
   async handleIncoming(msg) {
     const firstLine = String(msg.content || "").split("\n")[0];
     const priority = msg.meta?.priority || "normal";
+    // Never trust a position from the network: it is validated, or dropped.
+    const position = sanitizePosition(msg.meta?.position);
 
     if (msg.meta?.type === "relief") {
       const id = msg.meta.reliefId || msg.id;
@@ -257,6 +260,7 @@ class AlertManager {
           status: "open",
           createdAt: msg.sentAt,
           updatedAt: msg.receivedAt,
+          location: position,
           remote: true,
         });
       }
@@ -270,6 +274,7 @@ class AlertManager {
       priority,
       senderId: msg.from,
       timestamp: msg.receivedAt,
+      location: position,
       remote: true,
     });
     this.incomingAlerts = this.incomingAlerts.slice(0, 50);
