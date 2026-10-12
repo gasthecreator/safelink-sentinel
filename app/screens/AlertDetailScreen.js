@@ -23,8 +23,15 @@ import {
 } from "../utils/GeoUtils.js";
 import RescueLogger from "../services/storage/RescueLogger.js";
 import AlertManager from "../services/mesh/AlertManager.js";
+import { describePosition, mapsUrl } from "../services/location/position.js";
 
 const HELPER_ID = "device-volunteer"; // later: replace with real identity
+
+// The in-app map needs an online map provider (on Android a Google Maps API key,
+// which this app doesn't have) and fetches routes over the internet, so it can't
+// work in the situations this app is for. Until an offline map exists, alerts are
+// shown as text with a button that opens the phone's own Maps app.
+const SHOW_MAP_VIEW = false;
 
 export default function AlertDetailScreen() {
   const route = useRoute();
@@ -40,7 +47,7 @@ export default function AlertDetailScreen() {
   const [arrived, setArrived] = useState(false);
 
   useEffect(() => {
-    loadRoute();
+    if (SHOW_MAP_VIEW) loadRoute();
   }, []);
 
   const loadRoute = async () => {
@@ -199,8 +206,18 @@ export default function AlertDetailScreen() {
     }
   };
 
-  // Most alerts carry no coordinates: show the message itself instead of a map.
-  if (!alert.location) {
+  // Show the message itself, with the sender's position as text when they shared one.
+  if (!SHOW_MAP_VIEW || !alert.location) {
+    const position = describePosition(alert.location);
+    const openInMaps = async () => {
+      const url = mapsUrl(alert.location, alert.title, Platform.OS);
+      try {
+        if (!url) throw new Error("no position");
+        await Linking.openURL(url);
+      } catch {
+        Alert.alert("Could not open Maps", "No maps app could open this position.");
+      }
+    };
     return (
       <View style={styles.textOnlyContainer}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -212,7 +229,28 @@ export default function AlertDetailScreen() {
         ) : null}
         {alert.time ? <Text style={styles.textOnlyMeta}>{alert.time}</Text> : null}
         <Text style={styles.textOnlyBody}>{alert.description || "No description available"}</Text>
-        <Text style={styles.textOnlyMeta}>No location was shared with this alert.</Text>
+
+        {position ? (
+          <View style={styles.positionBox}>
+            <Text style={styles.positionLabel}>Sender's position</Text>
+            <Text style={styles.positionCoords}>{position.coords}</Text>
+            <Text style={styles.textOnlyMeta}>
+              {[position.accuracy, position.age ? `fix taken ${position.age}` : null]
+                .filter(Boolean)
+                .join("  ·  ") || "Accuracy unknown"}
+            </Text>
+            {position.approximate ? (
+              <Text style={styles.positionWarn}>
+                Only an approximate area: the sender may be much closer or further than this.
+              </Text>
+            ) : null}
+            <TouchableOpacity style={styles.positionButton} onPress={openInMaps}>
+              <Text style={styles.positionButtonText}>Open in Maps app</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <Text style={styles.textOnlyMeta}>No location was shared with this alert.</Text>
+        )}
       </View>
     );
   }
@@ -399,6 +437,12 @@ const styles = StyleSheet.create({
   textOnlyTitle: { color: "#F8FAFC", fontSize: 24, fontWeight: "800", marginBottom: 8 },
   textOnlyBody: { color: "#E2E8F0", fontSize: 17, lineHeight: 24, marginVertical: 16 },
   textOnlyMeta: { color: "#94A3B8", fontSize: 14, marginBottom: 4 },
+  positionBox: { backgroundColor: "#111C30", borderRadius: 12, padding: 14, marginTop: 8 },
+  positionLabel: { color: "#94A3B8", fontSize: 13, marginBottom: 4 },
+  positionCoords: { color: "#F8FAFC", fontSize: 20, fontWeight: "700", marginBottom: 4 },
+  positionWarn: { color: "#FBBF24", fontSize: 13, marginTop: 6 },
+  positionButton: { backgroundColor: "#38BDF8", borderRadius: 10, paddingVertical: 12, marginTop: 14, alignItems: "center" },
+  positionButtonText: { color: "#0B1220", fontSize: 16, fontWeight: "700" },
   container: { flex: 1, backgroundColor: "#F8FAFC" },
   map: { flex: 1 },
   infoCard: {

@@ -19,6 +19,7 @@ import OfflineSyncModal from "../components/OfflineSyncModal";
 import MeshManager from "../services/mesh/MeshManager";
 import NodeDiscovery from "../services/mesh/NodeDiscovery";
 import Outbox from "../services/mesh/Outbox";
+import { describePosition } from "../services/location/position";
 
 // "5 min ago"-style label; falls back to "Just now" when there is no usable time.
 function formatTime(value) {
@@ -184,7 +185,7 @@ export default function MeshHomeScreen({ navigation }) {
       id: alert.id || `alert-${Date.now()}`,
       title: alert.title || alert.message || "Alert",
       description: alert.description || alert.body || alert.message || "",
-      address: alert.address || alert.locationLabel || null,
+      address: alert.address || alert.locationLabel || describePosition(alert.location)?.text || null,
       location: alert.location || (alert.latitude && alert.longitude ? {
         latitude: alert.latitude,
         longitude: alert.longitude,
