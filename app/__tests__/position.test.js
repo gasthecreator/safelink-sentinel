@@ -12,7 +12,7 @@ const good = { latitude: 30.5, longitude: -92.25, accuracyM: 12.4, fixedAt: NOW 
 describe("sanitizePosition (positions come from other people's phones)", () => {
   test("keeps a good position and rounds it", () => {
     expect(sanitizePosition({ ...good, latitude: 30.123456789 }, NOW)).toEqual({
-      latitude: 30.123457, longitude: -92.25, accuracyM: 12, fixedAt: good.fixedAt,
+      latitude: 30.123457, longitude: -92.25, accuracyM: 12, fixedAt: good.fixedAt, source: null, label: null,
     });
   });
 
@@ -44,13 +44,13 @@ describe("sanitizePosition (positions come from other people's phones)", () => {
       expect(sanitizePosition({ ...good, fixedAt }, NOW).fixedAt).toBeNull();
     }
     expect(sanitizePosition({ latitude: 1, longitude: 2 }, NOW)).toEqual({
-      latitude: 1, longitude: 2, accuracyM: null, fixedAt: null,
+      latitude: 1, longitude: 2, accuracyM: null, fixedAt: null, source: null, label: null,
     });
   });
 
   test("copies only the known fields (nothing extra is smuggled through)", () => {
     const out = sanitizePosition({ ...good, evil: "<script>", __proto__: { x: 1 } }, NOW);
-    expect(Object.keys(out).sort()).toEqual(["accuracyM", "fixedAt", "latitude", "longitude"]);
+    expect(Object.keys(out).sort()).toEqual(["accuracyM", "fixedAt", "label", "latitude", "longitude", "source"]);
   });
 });
 

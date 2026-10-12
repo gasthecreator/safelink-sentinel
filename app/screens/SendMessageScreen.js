@@ -1,5 +1,5 @@
 // app/screens/SendMessageScreen.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,13 @@ import {
   Switch,
   SafeAreaView,
   ScrollView,
+  Alert,
 } from "react-native";
 import * as Animatable from "react-native-animatable";
 import LinearGradient from "react-native-linear-gradient";
-import { getPositionForAlert } from "../services/location/LocationService";
-import { describeLocationOutcome } from "../services/location/position";
+import { resolveAlertLocation } from "../services/location/resolveLocation";
+import { listPlaces } from "../services/location/PlaceStore";
+import { describeLocationOutcome, describePosition } from "../services/location/position";
 
 const PRIORITIES = ["critical", "high", "normal", "low"];
 
@@ -24,6 +26,26 @@ const PRIORITY_COLORS = {
   low: "#3B82F6",
 };
 
+// GPS has no position: let the sender choose rather than guessing for them.
+function askNoFix(fix) {
+  const why =
+    fix.reason === "denied"
+      ? "Location permission was declined."
+      : "The phone could not get a GPS fix. Try near a window or outdoors.";
+  return new Promise((resolve) => {
+    Alert.alert(
+      "No GPS position",
+      `${why}\n\nYou can send without a position, or use a place you saved earlier.`,
+      [
+        { text: "Send without position", onPress: () => resolve("send") },
+        { text: "Use a saved place", onPress: () => resolve("places") },
+        { text: "Cancel", style: "cancel", onPress: () => resolve("cancel") },
+      ],
+      { cancelable: true, onDismiss: () => resolve("cancel") }
+    );
+  });
+}
+
 export default function SendMessageScreen({ route, navigation }) {
   const mode = route.params?.mode || "status";
   const [text, setText] = useState("");
@@ -31,9 +53,20 @@ export default function SendMessageScreen({ route, navigation }) {
   const [includeLocation, setIncludeLocation] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [source, setSource] = useState("gps"); // "gps" or "place"
+  const [places, setPlaces] = useState([]);
+  const [selectedPlaceId, setSelectedPlaceId] = useState(null);
+  const [where, setWhere] = useState("");
   const [sent, setSent] = useState(false);
   const [resultText, setResultText] = useState("Message sent!");
   const [delivered, setDelivered] = useState(true);
+
+  // Saved places can change on the Places screen, so reload when coming back here.
+  useEffect(() => {
+    const load = () => listPlaces().then(setPlaces).catch(() => {});
+    load();
+    return navigation.addListener("focus", load);
+  }, [navigation]);
 
   const title = mode === "relief" ? "Request help" : "Send status update";
   const placeholder =
@@ -65,17 +98,31 @@ export default function SendMessageScreen({ route, navigation }) {
       // Get sender ID
       const senderId = await IdentityManager.getMyId();
       
-      // GPS needs no internet, but it can take a while to get a first fix, so the
-      // button says what it is doing. A failure here never stops the message.
-      let fix = null;
-      if (includeLocation) {
-        setLocating(true);
-        try {
-          fix = await getPositionForAlert();
-        } finally {
-          setLocating(false);
-        }
+      // Work out the position to attach. GPS needs no internet, but a first fix can
+      // take a while, so the button says what it is doing. If GPS has no fix the
+      // user decides what to do; a failure here never silently drops the message.
+      const place = places.find((p) => p.id === selectedPlaceId);
+      if (includeLocation && source === "place" && !place) {
+        Alert.alert("Choose a place", "Pick one of your saved places, or switch back to GPS.");
+        setSubmitting(false);
+        return;
       }
+      if (includeLocation && source === "gps") setLocating(true);
+      let resolved;
+      try {
+        resolved = await resolveAlertLocation(
+          { include: includeLocation, source, place },
+          { onNoFix: askNoFix }
+        );
+      } finally {
+        setLocating(false);
+      }
+      if (resolved.cancelled) {
+        if (resolved.switchToPlaces) setSource("place");
+        setSubmitting(false);
+        return;
+      }
+      const fix = resolved.fix;
       const position = fix?.position || null;
 
       let summary;
@@ -86,12 +133,13 @@ export default function SendMessageScreen({ route, navigation }) {
           description: text,
           priority,
           location: position,
+          where,
         });
         summary = result?.summary;
         console.log("[SendMessageScreen] Relief request created:", result?.request?.id);
       } else {
         // Broadcast status update
-        summary = await MeshManager.broadcastAlert(senderId, text, { priority, position });
+        summary = await MeshManager.broadcastAlert(senderId, text, { priority, position, where });
         console.log("[SendMessageScreen] Alert broadcast:", summary);
       }
 
@@ -200,11 +248,72 @@ export default function SendMessageScreen({ route, navigation }) {
             thumbColor={includeLocation ? "#3B82F6" : "#F1F5F9"}
           />
         </View>
-        <Text style={styles.locationNote}>
-          {includeLocation
-            ? "Uses GPS, which works without internet. Every nearby phone that receives your message can see where you are."
-            : "Your message will be sent without a location."}
-        </Text>
+        {includeLocation ? (
+          <>
+            <View style={styles.sourceRow}>
+              {[
+                ["gps", "GPS"],
+                ["place", "A saved place"],
+              ].map(([value, label]) => (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.sourceChip, source === value && styles.sourceChipActive]}
+                  onPress={() => setSource(value)}
+                >
+                  <Text style={[styles.sourceChipText, source === value && styles.sourceChipTextActive]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {source === "place" ? (
+              <View style={styles.placesBox}>
+                {places.length === 0 ? (
+                  <Text style={styles.locationNote}>
+                    You have no saved places yet. Save one while you have a GPS fix.
+                  </Text>
+                ) : (
+                  places.map((place) => {
+                    const chosen = place.id === selectedPlaceId;
+                    return (
+                      <TouchableOpacity
+                        key={place.id}
+                        style={[styles.placeRow, chosen && styles.placeRowChosen]}
+                        onPress={() => setSelectedPlaceId(place.id)}
+                      >
+                        <Text style={styles.placeRowName}>
+                          {chosen ? "● " : "○ "}
+                          {place.name}
+                        </Text>
+                        <Text style={styles.placeRowMeta}>{describePosition(place)?.coords}</Text>
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+                <TouchableOpacity onPress={() => navigation.navigate("Places")}>
+                  <Text style={styles.manageLink}>Manage saved places</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            <Text style={styles.locationNote}>
+              {source === "gps"
+                ? "Uses GPS, which works without internet. Every nearby phone that receives your message can see where you are."
+                : "Uses the place you choose. Every nearby phone that receives your message can see it."}
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.locationNote}>Your message will be sent without a position.</Text>
+        )}
+
+        <Text style={styles.label}>Where are you? (optional)</Text>
+        <TextInput
+          style={styles.whereInput}
+          value={where}
+          onChangeText={setWhere}
+          placeholder="e.g. 2nd floor, behind the pharmacy"
+          maxLength={200}
+          editable={!submitting}
+        />
 
         <TouchableOpacity
           style={[styles.button, submitting && styles.buttonDisabled]}
@@ -228,6 +337,43 @@ export default function SendMessageScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  sourceRow: { flexDirection: "row", marginBottom: 10 },
+  sourceChip: {
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 18,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    marginRight: 8,
+    backgroundColor: "#fff",
+  },
+  sourceChipActive: { backgroundColor: "#3B82F6", borderColor: "#3B82F6" },
+  sourceChipText: { color: "#334155", fontWeight: "600" },
+  sourceChipTextActive: { color: "#fff" },
+  placesBox: { marginBottom: 6 },
+  placeRow: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  placeRowChosen: { borderColor: "#3B82F6", backgroundColor: "#EFF6FF" },
+  placeRowName: { fontSize: 15, fontWeight: "600", color: "#0F172A" },
+  placeRowMeta: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  manageLink: { color: "#3B82F6", fontSize: 13, marginVertical: 6, textDecorationLine: "underline" },
+  whereInput: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    marginBottom: 16,
+    color: "#0F172A",
+  },
   locationNote: { color: "#64748B", fontSize: 12.5, marginTop: -6, marginBottom: 14, lineHeight: 17 },
   safeArea: {
     flex: 1,

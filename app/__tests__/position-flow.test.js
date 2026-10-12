@@ -93,3 +93,76 @@ describe("positions from the network are never trusted", () => {
     expect(bob.inbox[0].meta.position).toBeUndefined();
   });
 });
+
+
+describe("saved places and the 'where are you' note", () => {
+  const { placeToPosition } = require("../services/location/places.js");
+  const shelter = { id: "p1", name: "School shelter", latitude: 30.5, longitude: -92.25, accuracyM: 7, kind: "gps", createdAt: 1 };
+
+  test("a saved place and a note reach the recipient, labelled", async () => {
+    const alice = await boot(net, "alice");
+    const bob = await boot(net, "bob");
+    await discover(net, alice, bob);
+    await alice.alerts.createReliefRequestAndAlert(alice.id, {
+      title: "Trapped", description: "Trapped", location: placeToPosition(shelter), where: "2nd floor, behind the pharmacy",
+    });
+    const [received] = await bob.alerts.getAlertFeed();
+    expect(received.location).toMatchObject({ latitude: 30.5, longitude: -92.25, source: "place", label: "School shelter" });
+    expect(received.where).toBe("2nd floor, behind the pharmacy");
+  });
+
+  test("a note alone (no position at all) still arrives", async () => {
+    const alice = await boot(net, "alice");
+    const bob = await boot(net, "bob");
+    await discover(net, alice, bob);
+    await alice.alerts.createReliefRequestAndAlert(alice.id, { title: "Help", description: "x", where: "Under the blue bridge" });
+    const [received] = await bob.alerts.getAlertFeed();
+    expect(received.location).toBeNull();
+    expect(received.where).toBe("Under the blue bridge");
+  });
+
+  test("status alerts carry a note too, and it survives a relay", async () => {
+    const alice = await boot(net, "alice");
+    const bob = await boot(net, "bob");
+    const carol = await boot(net, "carol");
+    await discover(net, alice, bob);
+    await alice.geo.broadcast(alice.id, "Safe", { where: "Church hall", position: placeToPosition(shelter) });
+    net.unlink(alice.id, bob.id);
+    await discover(net, bob, carol);
+    await bob.outbox.flush();
+    await settle();
+    const [received] = await carol.alerts.getAlertFeed();
+    expect(received.where).toBe("Church hall");
+    expect(received.location.label).toBe("School shelter");
+  });
+
+  test.each([
+    ["non-string note", 12345],
+    ["object note", { evil: true }],
+    ["empty note", "   "],
+    ["control characters", "\u0000\u0007\u202E"],
+  ])("a hostile %s is dropped", async (_n, bad) => {
+    const mallory = await boot(net, "mallory");
+    const bob = await boot(net, "bob");
+    await discover(net, mallory, bob);
+    await mallory.outbox.publish("[RELIEF] x - GENERAL\nx", { type: "relief", reliefId: `r-${_n}`, where: bad });
+    const [received] = await bob.alerts.getAlertFeed();
+    expect(received.where).toBeNull();
+  });
+
+  test("a hostile label and an enormous note are cleaned and capped, not rejected", async () => {
+    const mallory = await boot(net, "mallory");
+    const bob = await boot(net, "bob");
+    await discover(net, mallory, bob);
+    await mallory.outbox.publish("[RELIEF] x - GENERAL\nx", {
+      type: "relief",
+      reliefId: "r-big",
+      where: "W".repeat(5000),
+      position: { latitude: 30.5, longitude: -92.2, source: "place", label: "L".repeat(5000), extra: "<script>" },
+    });
+    const [received] = await bob.alerts.getAlertFeed();
+    expect(received.where).toHaveLength(200);
+    expect(received.location.label).toHaveLength(60);
+    expect(received.location.extra).toBeUndefined();
+  });
+});

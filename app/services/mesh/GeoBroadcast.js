@@ -3,7 +3,7 @@
 // the Outbox, so they reach everyone nearby now and anyone who arrives later.
 
 import Outbox from "./Outbox.js";
-import { sanitizePosition } from "../location/position.js";
+import { sanitizePosition, sanitizeText } from "../location/position.js";
 
 class GeoBroadcast {
   /**
@@ -11,7 +11,8 @@ class GeoBroadcast {
    * metadata so receivers can judge relevance; the radio range itself is the
    * delivery boundary.
    *
-   * Options: { center, radiusKm, priority, extraMeta, position, store = true }
+   * Options: { center, radiusKm, priority, extraMeta, position, where, store = true }
+   * `where` is a free-text note from the sender ("2nd floor, behind the pharmacy").
    * `position` is the sender's { latitude, longitude, accuracyM, fixedAt }; it is
    * validated and, if credible, sent along so receivers can find the sender.
    * `store: false` sends only to whoever is in range right now.
@@ -24,9 +25,11 @@ class GeoBroadcast {
       priority = "normal",
       extraMeta = {},
       position = null,
+      where = null,
       store = true,
     } = options;
     const cleanPosition = sanitizePosition(position);
+    const cleanWhere = sanitizeText(where);
 
     const meta = {
       priority,
@@ -34,6 +37,7 @@ class GeoBroadcast {
       ...(center ? { center } : {}),
       ...(radiusKm != null ? { radiusKm } : {}),
       ...(cleanPosition ? { position: cleanPosition } : {}),
+      ...(cleanWhere ? { where: cleanWhere } : {}),
     };
     // Urgent messages are allowed to travel further.
     const ttl = priority === "critical" || priority === "high" ? 6 : 4;

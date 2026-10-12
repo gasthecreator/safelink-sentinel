@@ -1,13 +1,36 @@
 // app/services/location/position.js
-// A position attached to an alert: { latitude, longitude, accuracyM, fixedAt }.
+// A position attached to an alert: { latitude, longitude, accuracyM, fixedAt, source, label }.
 //   accuracyM  horizontal accuracy in metres (null if the phone didn't say)
 //   fixedAt    when the fix was taken (ms since epoch; null if unknown), which can be
 //              long before the alert was sent if the phone had no fresh GPS fix
+//   source     where it came from: "gps" (the phone measured it), "place" (a saved
+//              place the sender chose) or "manual" (typed in by hand); null if unknown
+//   label      the place's name, for source "place"
 // Positions arrive from other people's phones, so everything is validated before use.
 
 const MAX_FUTURE_MS = 5 * 60 * 1000;
 const MAX_PAST_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_ACCURACY_M = 1e6;
+const SOURCES = ["gps", "place", "manual"];
+export const MAX_LABEL = 60;
+export const MAX_NOTE = 200;
+
+/**
+ * Plain text from a person or from the network: strings only, control characters
+ * turned into spaces, invisible direction/zero-width characters removed (they can make
+ * text display backwards or hide content), whitespace tidied, length capped.
+ * Returns null if nothing is left.
+ */
+export function sanitizeText(value, max = MAX_NOTE) {
+  if (typeof value !== "string") return null;
+  const clean = value
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ")
+    .replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean ? clean.slice(0, max) : null;
+}
 
 /** Accuracy worse than this means the phone only gave an approximate area. */
 export const APPROXIMATE_ABOVE_M = 500;
@@ -29,12 +52,15 @@ export function sanitizePosition(p, now = Date.now()) {
       ? Math.round(p.fixedAt)
       : null;
 
+  const source = SOURCES.includes(p.source) ? p.source : null;
   return {
     // ~1 cm precision is far beyond what GPS delivers
     latitude: Math.round(latitude * 1e6) / 1e6,
     longitude: Math.round(longitude * 1e6) / 1e6,
     accuracyM,
     fixedAt,
+    source,
+    label: source === "place" ? sanitizeText(p.label, MAX_LABEL) : null,
   };
 }
 
@@ -60,11 +86,21 @@ export function describePosition(position, now = Date.now()) {
   const age = p.fixedAt != null ? ageLabel(Math.max(0, now - p.fixedAt)) : null;
   const approximate = p.accuracyM != null && p.accuracyM > APPROXIMATE_ABOVE_M;
   const details = [accuracy, age ? `fix ${age}` : null].filter(Boolean).join(", ");
+  const provenance =
+    p.source === "place"
+      ? p.label
+        ? `From the saved place "${p.label}"`
+        : "From a saved place"
+      : p.source === "manual"
+      ? "Entered by hand, not measured"
+      : null;
   return {
     coords,
     accuracy,
     age,
     approximate,
+    provenance,
+    source: p.source,
     text: details ? `${coords} (${details})` : coords,
   };
 }
@@ -80,6 +116,10 @@ export function mapsUrl(position, label, platform) {
 
 /** One sentence telling the sender what happened with their location. */
 export function describeLocationOutcome({ position, reason, stale, approximate } = {}, now = Date.now()) {
+  if (position && position.source === "place") {
+    return position.label ? `Saved place "${position.label}" attached.` : "Saved place attached.";
+  }
+  if (position && position.source === "manual") return "Typed-in position attached.";
   if (position) {
     const d = describePosition(position, now);
     if (approximate) {
@@ -95,6 +135,8 @@ export function describeLocationOutcome({ position, reason, stale, approximate }
       return "Sent without your location: no GPS fix. Try near a window or outdoors.";
     case "timeout":
       return "Sent without your location: no GPS fix in time.";
+    case "no_place":
+      return "Sent without your location: no saved place was chosen.";
     default:
       return "Sent without your location.";
   }
