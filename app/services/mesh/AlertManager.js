@@ -140,6 +140,7 @@ class AlertManager {
       radiusKm,
       priority,
       extraMeta: { type, auto: true },
+      store: false, // automatic status alerts go only to whoever is in range now
     });
 
     this.logAlert(alert, summary);

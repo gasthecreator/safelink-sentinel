@@ -78,17 +78,17 @@ export default function SendMessageScreen({ route, navigation }) {
         console.log("[SendMessageScreen] Alert broadcast:", summary);
       }
 
-      // Report what actually happened: sending to nobody is not "sent".
+      // Report what actually happened. Messages are kept and sent to anyone who
+      // comes into range later, so "nobody here yet" is not a failure, but it is
+      // also not delivery, and the screen must say which one it is.
       const reached = summary?.success || 0;
       const ok = reached > 0;
       setDelivered(ok);
       setResultText(
         ok
-          ? `Delivered to ${reached} nearby device${reached === 1 ? "" : "s"}.`
-          : summary?.totalTargets
-          ? "Could not reach any nearby device. Try again."
-          : mode === "relief"
-          ? "Saved on this phone. No nearby devices yet - it will not reach anyone until someone is in range."
+          ? `Delivered to ${reached} nearby device${reached === 1 ? "" : "s"}. It will also go to devices that come into range later.`
+          : summary?.queued
+          ? "Not delivered yet: no one is in range. It is saved and will be sent automatically when a device comes into range (kept for 24 hours)."
           : "No nearby devices in range. Nothing was sent."
       );
       setSent(true);

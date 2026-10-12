@@ -7,6 +7,7 @@ import SyncManager from "./SyncManager.js";
 import AlertManager from "./AlertManager.js";
 import HealthMonitor from "../storage/HealthMonitor.js";
 import BleTransport from "../ble/BleTransport.js";
+import Outbox from "./Outbox.js";
 import { nowISO } from "../../utils/TimeUtils.js";
 
 class MeshManager {
@@ -29,6 +30,9 @@ class MeshManager {
         console.log("[SafeLink][MeshManager] Inbox failed:", err.message)
       )
     );
+    await Outbox.init();
+    // A peer coming into range is the moment waiting messages can go out.
+    NodeDiscovery.onPeerDiscovered(() => Outbox.requestFlush());
     await NodeDiscovery.init?.();
     await SyncManager.initialize?.();
     await AlertManager.init();
