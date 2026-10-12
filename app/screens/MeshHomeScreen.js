@@ -201,6 +201,8 @@ export default function MeshHomeScreen({ navigation }) {
       time: alert.time || formatTime(alert.timestamp || alert.updatedAt || alert.createdAt),
       reliefId: alert.reliefId || null,
       where: alert.where || null,
+      // Who to look for with the Bluetooth finder; only alerts from other phones have one.
+      senderId: alert.remote ? alert.senderId || alert.requesterId || null : null,
     };
   };
 
