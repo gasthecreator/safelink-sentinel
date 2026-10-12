@@ -7,7 +7,7 @@ import MessageRelay from "./MessageRelay.js";
 import RouterAI from "../ai/RouterAI.js";
 import ReliefRequestStore from "../storage/ReliefRequestStore.js";
 import { v4 as uuidv4 } from "uuid";
-import { sanitizePosition } from "../location/position.js";
+import { sanitizePosition, sanitizeText } from "../location/position.js";
 
 class AlertManager {
   constructor() {
@@ -173,9 +173,11 @@ class AlertManager {
       location = null,
       priority = "high",
       radiusKm = 30,
+      where = null,
     } = payload;
 
     const position = sanitizePosition(location);
+    const whereNote = sanitizeText(where);
     const id = uuidv4();
     const request = {
       id,
@@ -187,6 +189,7 @@ class AlertManager {
       amountNeeded,
       currency,
       location: position,
+      where: whereNote,
       priority,
       status: "open", // open | partial | fulfilled | expired
       createdAt: new Date().toISOString(),
@@ -210,6 +213,7 @@ class AlertManager {
       radiusKm,
       priority,
       position,
+      where: whereNote,
       extraMeta: { type: "relief", reliefId: id },
     });
 
@@ -245,6 +249,7 @@ class AlertManager {
     const priority = msg.meta?.priority || "normal";
     // Never trust a position from the network: it is validated, or dropped.
     const position = sanitizePosition(msg.meta?.position);
+    const where = sanitizeText(msg.meta?.where);
 
     if (msg.meta?.type === "relief") {
       const id = msg.meta.reliefId || msg.id;
@@ -261,6 +266,7 @@ class AlertManager {
           createdAt: msg.sentAt,
           updatedAt: msg.receivedAt,
           location: position,
+          where,
           remote: true,
         });
       }
@@ -275,6 +281,7 @@ class AlertManager {
       senderId: msg.from,
       timestamp: msg.receivedAt,
       location: position,
+      where,
       remote: true,
     });
     this.incomingAlerts = this.incomingAlerts.slice(0, 50);

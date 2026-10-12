@@ -21,6 +21,13 @@ import NodeDiscovery from "../services/mesh/NodeDiscovery";
 import Outbox from "../services/mesh/Outbox";
 import { describePosition } from "../services/location/position";
 
+// Where the sender is: their own words first, then the coordinates if they shared any.
+function describeWhere(alert) {
+  const position = describePosition(alert.location);
+  if (alert.where && position) return `${alert.where} (${position.coords})`;
+  return alert.where || position?.text || null;
+}
+
 // "5 min ago"-style label; falls back to "Just now" when there is no usable time.
 function formatTime(value) {
   const ms = value ? Date.parse(value) : NaN;
@@ -185,7 +192,7 @@ export default function MeshHomeScreen({ navigation }) {
       id: alert.id || `alert-${Date.now()}`,
       title: alert.title || alert.message || "Alert",
       description: alert.description || alert.body || alert.message || "",
-      address: alert.address || alert.locationLabel || describePosition(alert.location)?.text || null,
+      address: alert.address || alert.locationLabel || describeWhere(alert),
       location: alert.location || (alert.latitude && alert.longitude ? {
         latitude: alert.latitude,
         longitude: alert.longitude,
@@ -193,6 +200,7 @@ export default function MeshHomeScreen({ navigation }) {
       priority: alert.priority || "normal",
       time: alert.time || formatTime(alert.timestamp || alert.updatedAt || alert.createdAt),
       reliefId: alert.reliefId || null,
+      where: alert.where || null,
     };
   };
 
@@ -385,9 +393,14 @@ export default function MeshHomeScreen({ navigation }) {
               </>
             )}
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate("Diagnostics")}>
-            <Text style={styles.diagnosticsLink}>Diagnostics</Text>
-          </TouchableOpacity>
+          <View style={styles.footerLinks}>
+            <TouchableOpacity onPress={() => navigation.navigate("Places")}>
+              <Text style={styles.diagnosticsLink}>Saved places</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("Diagnostics")}>
+              <Text style={styles.diagnosticsLink}>Diagnostics</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </LinearGradient>
     </SafeAreaView>
@@ -403,11 +416,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 13,
   },
+  footerLinks: { flexDirection: "row", justifyContent: "center", marginTop: 24 },
   diagnosticsLink: {
     color: "#64748B",
     textAlign: "center",
     fontSize: 13,
-    marginTop: 24,
+    marginHorizontal: 14,
     textDecorationLine: "underline",
   },
   safeArea: {

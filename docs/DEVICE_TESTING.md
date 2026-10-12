@@ -97,10 +97,20 @@ maintainer's Mac. On another machine change it or pass
    Tap it to read the full message and the position; **Open in Maps app** opens
    it in the phone's own maps app (which works offline if you have offline maps
    downloaded there).
-7. Try it again with **Include my location** switched off: the message should
+7. **Saved places and the "where are you" note.** From the home screen open
+   **Saved places** and save your current location with a name (for example
+   "School shelter"), and optionally add one by typing coordinates such as
+   `30.5, -92.2`. Then send a **Request help** with **A saved place** chosen and
+   something in **Where are you?** (for example "2nd floor, behind the
+   pharmacy"). On the other device the alert shows your own words, then the
+   position labelled "From the saved place ...".
+   Also try declining location permission (or being indoors with no fix): the
+   app should stop and offer to send without a position or use a saved place,
+   keeping what you typed.
+8. Try it again with **Include my location** switched off: the message should
    still arrive, with "No location was shared with this alert", and with the
    permission declined: the sender is told it was sent without a location.
-8. Optionally repeat from B to A, and try **Status update**.
+9. Optionally repeat from B to A, and try **Status update**.
 
 ### Store-and-forward check (messages wait for someone to arrive)
 
@@ -184,6 +194,10 @@ Android also supports `adb logcat | grep ReactNativeJS`.
   "approximate" location the app warns that it is too rough to find someone.
   Every phone that receives your message can read your position, and your
   device ID never changes, so one phone's messages can be linked together.
+- **Saved places are only as good as the moment you saved them.** A place is a
+  fixed point: if you save "Home" and then are somewhere else, the app will
+  happily send "Home". The receiver is told it came from a saved place (or was
+  typed in), not measured, but it is still up to the sender to pick the right one.
 - **No in-app map yet.** The old map screen needs an online map provider, so
   alerts show the position as text plus a button to open the phone's own maps app.
 - **Emulators and simulators:** the iOS simulator has no Bluetooth. Android

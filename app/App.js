@@ -10,6 +10,7 @@ import PeerListScreen from "./screens/PeerListScreen";
 import OnboardingScreen from "./screens/OnboardingScreen";
 import AlertDetailScreen from "./screens/AlertDetailScreen";
 import DiagnosticsScreen from "./screens/DiagnosticsScreen";
+import PlacesScreen from "./screens/PlacesScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -55,6 +56,7 @@ export default function App() {
         <Stack.Screen name="SendMessage" component={SendMessageScreen} />
         <Stack.Screen name="PeerList" component={PeerListScreen} />
         <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} />
+        <Stack.Screen name="Places" component={PlacesScreen} />
         <Stack.Screen 
           name="AlertDetail" 
           component={AlertDetailScreen}

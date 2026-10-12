@@ -230,10 +230,18 @@ export default function AlertDetailScreen() {
         {alert.time ? <Text style={styles.textOnlyMeta}>{alert.time}</Text> : null}
         <Text style={styles.textOnlyBody}>{alert.description || "No description available"}</Text>
 
+        {alert.where ? (
+          <View style={styles.positionBox}>
+            <Text style={styles.positionLabel}>Sender says they are</Text>
+            <Text style={styles.positionCoords}>{alert.where}</Text>
+          </View>
+        ) : null}
+
         {position ? (
           <View style={styles.positionBox}>
             <Text style={styles.positionLabel}>Sender's position</Text>
             <Text style={styles.positionCoords}>{position.coords}</Text>
+            {position.provenance ? <Text style={styles.textOnlyMeta}>{position.provenance}</Text> : null}
             <Text style={styles.textOnlyMeta}>
               {[position.accuracy, position.age ? `fix taken ${position.age}` : null]
                 .filter(Boolean)
@@ -248,7 +256,7 @@ export default function AlertDetailScreen() {
               <Text style={styles.positionButtonText}>Open in Maps app</Text>
             </TouchableOpacity>
           </View>
-        ) : (
+        ) : alert.where ? null : (
           <Text style={styles.textOnlyMeta}>No location was shared with this alert.</Text>
         )}
       </View>
