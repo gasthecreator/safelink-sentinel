@@ -38,6 +38,7 @@ class NodeDiscovery {
     this.scanTimeout = 10000;
     this.ready = false; // permissions granted and Bluetooth powered on
     this.scanning = false;
+    this.tracking = false; // a dedicated signal-strength scan is running (see startTracking)
     this.autoTimer = null;
   }
 
@@ -160,7 +161,7 @@ class NodeDiscovery {
       console.log("[SafeLink] Discovery skipped: Bluetooth not ready (permissions or power).");
       return this.getPeers();
     }
-    if (this.scanning) return this.getPeers();
+    if (this.scanning || this.tracking) return this.getPeers();
 
     this.scanning = true;
     try {
@@ -189,7 +190,8 @@ class NodeDiscovery {
     try {
       await sleep(this.scanTimeout);
     } finally {
-      manager.stopDeviceScan();
+      // Don't stop a tracking scan that took over the radio while this one was running.
+      if (!this.tracking) manager.stopDeviceScan();
     }
     return found;
   }
@@ -244,6 +246,50 @@ class NodeDiscovery {
         `[SafeLink] ✅ Peer found: ${fresh.name} (${fresh.id.slice(0, 8)}) | RSSI: ${fresh.rssi} | ~${fresh.distance}m`
       );
     }
+  }
+
+  /** The peer with this node ID if it was seen recently, else null. */
+  getPeer(id) {
+    const peer = this.peerMap.get(id);
+    if (!peer || peer.simulated) return null;
+    return new Date(peer.timestamp).getTime() >= Date.now() - PEER_TTL_MS ? peer : null;
+  }
+
+  /**
+   * Follow one phone's Bluetooth signal strength, for the "find them" screen.
+   * Scans continuously (reporting every advertisement, which the normal scan
+   * does not) and calls onSample(rssi) each time that phone is heard. The normal
+   * discovery cycle is paused meanwhile because two scans fight over the radio.
+   * Returns a function that stops tracking, or null if the phone isn't known or
+   * Bluetooth isn't usable.
+   */
+  startTracking(peerId, onSample) {
+    const manager = getBleManager();
+    const peer = this.getPeer(peerId);
+    if (!manager || !this.ready || !peer || !peer.bleId) return null;
+    if (this.tracking) this.stopTracking();
+
+    this.tracking = true; // makes the normal discovery cycle step aside
+    manager.stopDeviceScan();
+    const LOW_LATENCY = 2; // react-native-ble-plx ScanMode.LowLatency
+    manager.startDeviceScan(
+      [SERVICE_UUID],
+      { allowDuplicates: true, scanMode: LOW_LATENCY },
+      (error, device) => {
+        if (error) {
+          console.log("[SafeLink] Tracking scan error:", error.message);
+          return;
+        }
+        if (device && device.id === peer.bleId && typeof device.rssi === "number") onSample(device.rssi);
+      }
+    );
+    return () => this.stopTracking();
+  }
+
+  stopTracking() {
+    if (!this.tracking) return;
+    this.tracking = false;
+    getBleManager()?.stopDeviceScan();
   }
 
   // Rescan on an interval so the peer list tracks who is actually nearby.
@@ -308,6 +354,7 @@ class NodeDiscovery {
   // Stop scanning and cleanup
   async stop() {
     this.stopAutoDiscovery();
+    this.stopTracking();
     getBleManager()?.stopDeviceScan();
     await BleTransport.stop();
     console.log("[SafeLink] NodeDiscovery stopped and cleaned up.");

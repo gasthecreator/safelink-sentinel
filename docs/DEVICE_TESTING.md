@@ -112,6 +112,26 @@ maintainer's Mac. On another machine change it or pass
    permission declined: the sender is told it was sent without a location.
 9. Optionally repeat from B to A, and try **Status update**.
 
+### Finder check (walking toward the sender)
+
+With the two devices in range and an alert from A showing on B:
+
+1. On B open the alert and tap **Find them by Bluetooth**. It should show a band
+   ("Very close", "Close", "In range" or "Weak signal") and, after a few steps,
+   whether you are getting closer or moving away.
+2. Walk away from A (around a corner, or 15 to 20 steps) and watch the band drop
+   and the trend turn to "Moving away"; walk back and it should recover.
+3. Move out of Bluetooth range: after about 12 seconds it should say "Signal
+   lost" rather than keep showing the last reading.
+4. Open the same alert while A is **not** in range: it should say so and show A's
+   own words instead.
+
+Signal strength is a rough guide. Bodies, walls and how the phone is held swing it
+by 10 dB or more, and phone models differ, so the screen shows bands and a trend
+rather than metres. Expect the trend ("closer / further") to be more trustworthy
+than the band. This has not been tried on real devices yet: please record what it
+did, including any jumpiness, in the results table.
+
 ### Store-and-forward check (messages wait for someone to arrive)
 
 A message sent with nobody in range is not lost: it is kept for 24 hours and
@@ -194,6 +214,11 @@ Android also supports `adb logcat | grep ReactNativeJS`.
   "approximate" location the app warns that it is too rough to find someone.
   Every phone that receives your message can read your position, and your
   device ID never changes, so one phone's messages can be linked together.
+- **The Bluetooth finder only works in direct range** (tens of metres) and only
+  for a phone heard recently. An Android phone changes its Bluetooth address from
+  time to time, which can make the finder lose it until the next scan finds it
+  again. Ultra-wideband (iPhone to iPhone) would give a real direction and
+  distance, but is not built.
 - **Saved places are only as good as the moment you saved them.** A place is a
   fixed point: if you save "Home" and then are somewhere else, the app will
   happily send "Home". The receiver is told it came from a saved place (or was
