@@ -17,6 +17,7 @@ import RouterAI from "../ai/RouterAI.js";
 import AnalyticsLogger from "../storage/AnalyticsLogger.js";
 import MessageCache from "../storage/MessageCache.js";
 import BleTransport from "../ble/BleTransport.js";
+import Outbox from "./Outbox.js";
 
 // In-memory outgoing queue
 const messageQueue = [];
@@ -25,7 +26,6 @@ const PEER_BACKOFF_MS = 30 * 1000; // after a failed send, leave that peer alone
 const MAX_MESSAGE_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 const SEEN_LIMIT = 1000;
-const MAX_FORWARD_PEERS = 5;
 
 class MessageRelay {
   constructor() {
@@ -233,30 +233,9 @@ class MessageRelay {
       }
     }
 
-    // Everything not addressed to us is relayed; broadcasts are relayed too.
-    if (!addressedToMe) this.forward(env).catch(() => {});
+    // Everything not addressed to us is kept and relayed, now and to later arrivals.
+    if (!addressedToMe) Outbox.addRelay(env).catch(() => {});
     return received;
-  }
-
-  // Pass an envelope on to nearby peers until its hop limit is reached.
-  async forward(env) {
-    if (env.hops + 1 >= env.ttl) return;
-    const peers = (await getAllPeers())
-      .filter((p) => p.id !== env.from && p.bleId && !this.isBackedOff(p.id))
-      .sort((a, b) => (b.rssi || -100) - (a.rssi || -100))
-      .slice(0, MAX_FORWARD_PEERS);
-    if (peers.length === 0) return;
-
-    const bytes = encodeEnvelope({ ...env, hops: env.hops + 1 });
-    for (const peer of peers) {
-      try {
-        await BleTransport.send(peer, bytes);
-      } catch (err) {
-        this.peerBackoff.set(peer.id, Date.now() + PEER_BACKOFF_MS);
-        console.log(`[SafeLink] Relay to ${peer.name} failed: ${err.message}`);
-      }
-    }
-    console.log(`[SafeLink] 🔀 Relayed ${env.id.slice(0, 8)} to ${peers.length} peer(s)`);
   }
 
   // Retry all failed messages

@@ -9,6 +9,7 @@ import SendMessageScreen from "./screens/SendMessageScreen";
 import PeerListScreen from "./screens/PeerListScreen";
 import OnboardingScreen from "./screens/OnboardingScreen";
 import AlertDetailScreen from "./screens/AlertDetailScreen";
+import DiagnosticsScreen from "./screens/DiagnosticsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -53,6 +54,7 @@ export default function App() {
         <Stack.Screen name="MeshHome" component={MeshHomeScreen} />
         <Stack.Screen name="SendMessage" component={SendMessageScreen} />
         <Stack.Screen name="PeerList" component={PeerListScreen} />
+        <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} />
         <Stack.Screen 
           name="AlertDetail" 
           component={AlertDetailScreen}

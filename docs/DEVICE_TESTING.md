@@ -89,40 +89,67 @@ maintainer's Mac. On another machine change it or pass
 5. On device A tap **Request help**, type a short message and send. The result
    line on A should say it was delivered to 1 nearby device.
 6. On device B the message should appear under **Active alerts & requests**
-   within a few seconds.
+   within a few seconds. Tap it to read the full message.
 7. Optionally repeat from B to A, and try **Status update**.
+
+### Store-and-forward check (messages wait for someone to arrive)
+
+A message sent with nobody in range is not lost: it is kept for 24 hours and
+sent to every device that later comes into range.
+
+1. Close the app on device B (or move it out of range).
+2. On A send a **Request help**. The screen should say it was **not delivered
+   yet** and will be sent automatically. The home screen should show
+   "1 message waiting".
+3. Now open the app on B within range of A. Within about a minute B should show
+   the message under Active alerts, and A's "waiting" banner should disappear.
+4. Optional: force-quit and reopen A while a message is still waiting; the
+   waiting count should survive the restart.
 
 If nothing is in range the send screen says so instead of reporting success;
 that is intended.
 
-## What "working" looks like in the logs
+## Seeing what the app is doing: the Diagnostics screen
 
-Where logs are available (Android `adb logcat`, or an iOS Debug build, below),
-these lines show each stage:
+Release builds on iOS show no console, so the app has its own. On the home
+screen scroll to the bottom and tap **Diagnostics**. It shows live status and
+the recent log:
+
+| Status line | Healthy value |
+|---|---|
+| Keys in secure storage | yes |
+| BLE stack present | yes |
+| Bluetooth ready (permissions + powered on) | yes |
+| Scanning now | yes some of the time (10 s scan every 30 s) |
+| Peripheral module linked | yes |
+| Advertising | `advertising` (Android emulators and some devices report `unsupported`) |
+| Nearby devices | the other device, with its signal strength |
+| Messages waiting for someone in range | 0 once delivered |
+
+Tap **Share status + log** to send the whole thing (AirDrop, Messages, email,
+Notes) when reporting a problem. This is the first thing to do if a test fails.
+
+Log lines that show each stage:
 
 | Log line | Meaning |
 |---|---|
 | `Peripheral state: advertising` | this device is advertising and serving GATT |
 | `Advertising as <id>` | its public device ID |
-| `Starting device discovery...` / `Discovery finished`  | a scan cycle (10 s scan, every 30 s) |
+| `Starting device discovery...` / `Discovery finished` | a scan cycle |
 | `Peer found: ... (<id>)` | a nearby node was found and its identity verified |
 | `Sent <n>B to <id> in <k> frame(s), MTU <m>` | a message was written to a peer |
-| `Received broadcast message ...` / `Received direct message ...` | a verified message arrived |
+| `Received broadcast message ...` | a verified message arrived |
+| `[Outbox] Loaded <n> waiting message(s)` | saved messages restored at start |
 
-Android: `adb logcat | grep ReactNativeJS`.
-
-iOS: Release builds do not show JavaScript logs. To see them, run a **Debug**
-build from Xcode on the device while the Mac runs `cd app && npx react-native start`
-(the device must reach the Mac over the network at launch); logs then appear in
-Xcode's console. This route has not been exercised on a physical device.
+Android also supports `adb logcat | grep ReactNativeJS`.
 
 ## Troubleshooting
 
 | Symptom | Things to check |
 |---|---|
-| Stuck on "0 devices" | Bluetooth on at both ends; permissions granted (iOS: Settings, SafeLink Mesh AI, Bluetooth; Android: app permissions); both apps in the foreground; wait the full minute; force-quit and reopen both |
+| Stuck on "0 devices" | open Diagnostics first (it says which of permissions / power / advertising is wrong); Bluetooth on at both ends; permissions granted (iOS: Settings, SafeLink Mesh AI, Bluetooth; Android: app permissions); both apps in the foreground; wait the full minute; force-quit and reopen both |
 | One device sees the other but not the reverse | the one that can't be seen isn't advertising: on Android check for `Peripheral state: ...` other than `advertising` (the Android emulator and some devices cannot advertise); on iOS check the Bluetooth permission |
-| Found but message not delivered | look for `Send ... failed` in the logs; peers are retried after a 30 s back-off |
+| Found but message not delivered | it stays queued and is retried automatically (a failed peer is retried after 30 s); Diagnostics shows the waiting count and `Send ... failed` lines |
 | Xcode: "failed to verify code signature" / bundle ID errors | use a unique bundle identifier; trust the developer certificate on the device |
 | Build fails with missing `@react-native/...` files | `npm install` empties the hoisted `@react-native*` packages when the `app/node_modules` symlinks exist. Run `rm app/node_modules/react-native app/node_modules/@react-native app/node_modules/@react-native-community && npm install` (see `app/scripts/link-hoisted-modules.js`) |
 | `pod install` fails on encoding | `export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` first |
@@ -133,8 +160,14 @@ Xcode's console. This route has not been exercised on a physical device.
   Android behaviour in the background is untested. Keep the app open.
 - **Discovery is periodic:** a 10 s scan every 30 s, so a new device can take up
   to about 40 s to appear, and a device that leaves disappears after about 90 s.
-- **Relaying:** messages hop onward up to 4 times. This is exercised by a
-  simulated three-phone test, not on hardware.
+- **Relaying:** messages hop onward (up to 4 hops, 6 for high and critical
+  priority) and are kept so devices that arrive later still receive them. This
+  is exercised by a simulated multi-phone test, not on hardware.
+- **Alerts are signed but not encrypted:** requests for help are broadcast so
+  any nearby phone can read and relay them. Nobody can alter or forge one, but
+  anyone in range can read it. Direct encrypted messaging exists in the code but
+  has no screen yet.
+- **Location is not attached to alerts yet**, so received alerts show text only.
 - **Emulators and simulators:** the iOS simulator has no Bluetooth. Android
   emulators can scan, but a given emulator may not support advertising.
 - **Keys** are stored in the iOS Keychain and Android Keystore. On iOS they

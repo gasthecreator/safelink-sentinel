@@ -199,6 +199,24 @@ export default function AlertDetailScreen() {
     }
   };
 
+  // Most alerts carry no coordinates: show the message itself instead of a map.
+  if (!alert.location) {
+    return (
+      <View style={styles.textOnlyContainer}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.textOnlyBack}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.textOnlyTitle}>{alert.title || "Alert"}</Text>
+        {alert.priority ? (
+          <Text style={styles.textOnlyMeta}>Priority: {String(alert.priority).toUpperCase()}</Text>
+        ) : null}
+        {alert.time ? <Text style={styles.textOnlyMeta}>{alert.time}</Text> : null}
+        <Text style={styles.textOnlyBody}>{alert.description || "No description available"}</Text>
+        <Text style={styles.textOnlyMeta}>No location was shared with this alert.</Text>
+      </View>
+    );
+  }
+
   if (loading && !alert.location) {
     return (
       <View style={styles.loadingContainer}>
@@ -376,6 +394,11 @@ export default function AlertDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  textOnlyContainer: { flex: 1, backgroundColor: "#0B1220", padding: 20, paddingTop: 60 },
+  textOnlyBack: { color: "#38BDF8", fontSize: 16, fontWeight: "600", marginBottom: 16 },
+  textOnlyTitle: { color: "#F8FAFC", fontSize: 24, fontWeight: "800", marginBottom: 8 },
+  textOnlyBody: { color: "#E2E8F0", fontSize: 17, lineHeight: 24, marginVertical: 16 },
+  textOnlyMeta: { color: "#94A3B8", fontSize: 14, marginBottom: 4 },
   container: { flex: 1, backgroundColor: "#F8FAFC" },
   map: { flex: 1 },
   infoCard: {
