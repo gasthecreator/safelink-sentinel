@@ -112,6 +112,21 @@ maintainer's Mac. On another machine change it or pass
    permission declined: the sender is told it was sent without a location.
 9. Optionally repeat from B to A, and try **Status update**.
 
+### Directions check (offline map)
+
+The sample map covers about 4 x 5 km around Grambling, Louisiana, so this only works for alerts
+and positions there (see `docs/OFFLINE_MAPS.md` to make a pack for where you actually are).
+Put airplane mode on (Bluetooth back on) to prove it needs no internet.
+
+1. Receive an alert from the other device that has a position inside the map area (use a saved
+   place or typed coordinates on the sender if you are not really there).
+2. Open it and tap **Get directions**. With GPS (or a saved place or typed start inside the area)
+   it should show distance, time, a road map with a blue route, "You" and "Them", and numbered
+   directions with real street names.
+3. Switch **On foot** and **By car**: the car route should use roads a walker cannot (and vice
+   versa for footpaths).
+4. Choose a start outside the area: it should say no offline map covers it, not draw nonsense.
+
 ### Finder check (walking toward the sender)
 
 With the two devices in range and an alert from A showing on B:
@@ -223,7 +238,9 @@ Android also supports `adb logcat | grep ReactNativeJS`.
   fixed point: if you save "Home" and then are somewhere else, the app will
   happily send "Home". The receiver is told it came from a saved place (or was
   typed in), not measured, but it is still up to the sender to pick the right one.
-- **No in-app map yet.** The old map screen needs an online map provider, so
+- **The offline map is roads only and covers only the sample area.** It cannot know about closures
+  or damage, and the route is worked out once (it does not follow you). See `docs/OFFLINE_MAPS.md`.
+- **No satellite or street-level map.** The old map screen needs an online map provider, so
   alerts show the position as text plus a button to open the phone's own maps app.
 - **Emulators and simulators:** the iOS simulator has no Bluetooth. Android
   emulators can scan, but a given emulator may not support advertising.

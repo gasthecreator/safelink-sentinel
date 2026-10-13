@@ -230,6 +230,13 @@ export default function AlertDetailScreen() {
         {alert.time ? <Text style={styles.textOnlyMeta}>{alert.time}</Text> : null}
         <Text style={styles.textOnlyBody}>{alert.description || "No description available"}</Text>
 
+        {alert.location ? (
+          <TouchableOpacity style={styles.directionsButton} onPress={() => navigation.navigate("Navigation", { alert })}>
+            <Text style={styles.finderButtonText}>Get directions</Text>
+            <Text style={styles.finderButtonHint}>Offline: worked out on this phone, no internet needed</Text>
+          </TouchableOpacity>
+        ) : null}
+
         {alert.senderId ? (
           <TouchableOpacity style={styles.finderButton} onPress={() => navigation.navigate("Finder", { alert })}>
             <Text style={styles.finderButtonText}>Find them by Bluetooth</Text>
@@ -452,6 +459,7 @@ const styles = StyleSheet.create({
   textOnlyTitle: { color: "#F8FAFC", fontSize: 24, fontWeight: "800", marginBottom: 8 },
   textOnlyBody: { color: "#E2E8F0", fontSize: 17, lineHeight: 24, marginVertical: 16 },
   textOnlyMeta: { color: "#94A3B8", fontSize: 14, marginBottom: 4 },
+  directionsButton: { backgroundColor: "#2563EB", borderRadius: 12, padding: 14, marginBottom: 12 },
   finderButton: { backgroundColor: "#16A34A", borderRadius: 12, padding: 14, marginBottom: 12 },
   finderButtonText: { color: "#fff", fontSize: 18, fontWeight: "800" },
   finderButtonHint: { color: "#DCFCE7", fontSize: 13, marginTop: 2 },
