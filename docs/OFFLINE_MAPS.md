@@ -67,11 +67,18 @@ node scripts/build-routing-pack.js \
 ```
 
 `--bbox` is the area in decimal degrees, for example `32.505,-92.745,32.545,-92.690`. The script
-fetches the roads from OpenStreetMap through the public Overpass servers. It refuses areas larger
-than 0.25 square degrees (roughly 50 km x 50 km), and a dense city may need splitting into
-smaller pieces to stay within what the public servers allow; ask for one area at a time. For a whole county,
-state or country, download an extract from [Geofabrik](https://download.geofabrik.de/) and
-convert it to Overpass JSON; the converter (`scripts/lib/osmToPack.js`) takes that format.
+fetches the roads from OpenStreetMap through the public Overpass servers. An area bigger than one
+small request is fetched in tiles (about 400 km2 each, with a pause between them), joined into
+one pack, and retried if a server is busy. Finished tiles are kept next to the output (`--cache DIR`
+to choose where), so a run that fails part-way carries on where it stopped. One pack can cover up to
+1 square degree (about 10,000 km2, an estimated 20-25 MB from the measurement below, not yet tried on
+a phone); for more, make several packs.
+Roads that cross the edge of the area you asked for are included whole.
+
+Measured with a real pack: a 1,300 km2 area (the whole of Lincoln Parish, Louisiana) is 2.8 MB, loads
+in about 0.13 s and routes across it in about 60 ms on a laptop. Phones are slower, but the pack is read
+once and kept in memory. A pack built from tiles is identical to one fetched in a single request.
+Very large regions are better made from several packs than one.
 
 To ship a pack inside the app, register it in `app/services/navigation/packs.js` by adding a line to `BUNDLED`:
 
