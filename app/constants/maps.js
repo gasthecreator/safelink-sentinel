@@ -12,7 +12,7 @@ export const MAP_CATALOG_URL =
 
 // The publisher's public key (base64, 32 bytes). Generate with: node scripts/pack-keys.js
 // Leave empty to turn downloads off.
-export const MAP_CATALOG_PUBLIC_KEY = "";
+export const MAP_CATALOG_PUBLIC_KEY = "4XcMeHG3Rj4p+ZyvtzUvL/aYKGw5z/fuLJL2a6egUE4=";
 
 // Only https:// downloads are allowed. This exists so tests and local development can use http.
 export const ALLOW_INSECURE_PACK_URLS = false;
