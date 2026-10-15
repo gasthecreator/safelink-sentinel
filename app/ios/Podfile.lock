@@ -1133,6 +1133,8 @@ PODS:
     - React-perflogger (= 0.73.11)
   - RNCAsyncStorage (2.2.0):
     - React-Core
+  - RNFS (2.20.0):
+    - React-Core
   - RNKeychain (9.2.2):
     - glog
     - RCT-Folly (= 2022.05.16.00)
@@ -1232,6 +1234,7 @@ DEPENDENCIES:
   - React-utils (from `../node_modules/react-native/ReactCommon/react/utils`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCAsyncStorage (from `../../node_modules/@react-native-async-storage/async-storage`)"
+  - RNFS (from `../../node_modules/react-native-fs`)
   - RNKeychain (from `../../node_modules/react-native-keychain`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
@@ -1367,6 +1370,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   RNCAsyncStorage:
     :path: "../../node_modules/@react-native-async-storage/async-storage"
+  RNFS:
+    :path: "../../node_modules/react-native-fs"
   RNKeychain:
     :path: "../../node_modules/react-native-keychain"
   RNReanimated:
@@ -1447,6 +1452,7 @@ SPEC CHECKSUMS:
   React-utils: e8549669b504c18929b2e9aa4d87657e530a91a4
   ReactCommon: 9c38e8797dc2ac72edf63cd18cf450d918575666
   RNCAsyncStorage: b44e8a4e798c3e1f56bffccd0f591f674fb9198f
+  RNFS: 89de7d7f4c0f6bafa05343c578f61118c8282ed8
   RNKeychain: 018b7d68fdb8f45ae5ee0707eaf731fe761e3790
   RNReanimated: 96ed55872f2cbd67e83b2132595efdbf033dc111
   RNScreens: 59f615aa0782077560c8eea46c2daec3a716dba9

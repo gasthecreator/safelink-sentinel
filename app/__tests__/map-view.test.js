@@ -1,6 +1,6 @@
 import { projector, pickRoads, scaleBar, formatDistance, formatDuration } from "../services/navigation/mapView.js";
 import { loadPack } from "../services/navigation/pack.js";
-import { getPack, findPackFor, listPacks } from "../services/navigation/packs.js";
+import { getPack, findPackFor, listPacks, setInstalledSource } from "../services/navigation/packs.js";
 
 const { makePack, gridPack } = require("./helpers/packs.js");
 const P = (latitude, longitude) => ({ latitude, longitude });
@@ -114,20 +114,21 @@ describe("scale bar and formatting", () => {
 });
 
 describe("packs on the phone", () => {
-  test("the bundled sample loads and is listed", () => {
-    expect(getPack("grambling-la").ok).toBe(true);
-    expect(getPack("grambling-la")).toBe(getPack("grambling-la")); // cached, not re-parsed
-    expect(listPacks()).toEqual([expect.objectContaining({ id: "grambling-la", name: "Grambling, LA (sample)" })]);
+  beforeAll(() => setInstalledSource({ installed: async () => [], read: async () => null }));
+  test("the bundled sample loads and is listed", async () => {
+    expect((await getPack("grambling-la")).ok).toBe(true);
+    expect(await getPack("grambling-la")).toBe(await getPack("grambling-la")); // cached, not re-parsed
+    expect(await listPacks()).toEqual([expect.objectContaining({ id: "grambling-la", name: "Grambling, LA (sample)" })]);
   });
-  test("an unknown pack is refused politely", () => {
-    expect(getPack("atlantis")).toMatchObject({ ok: false });
+  test("an unknown pack is refused politely", async () => {
+    expect(await getPack("atlantis")).toMatchObject({ ok: false });
   });
-  test("a trip inside the area finds the pack; one outside does not", () => {
+  test("a trip inside the area finds the pack; one outside does not", async () => {
     const inside = [P(32.5266, -92.7165), P(32.5405, -92.6975)];
-    expect(findPackFor(inside).pack.name).toBe("Grambling, LA (sample)");
-    const split = findPackFor([P(32.5266, -92.7165), P(32.78, -96.8)]);
+    expect((await findPackFor(inside)).pack.name).toBe("Grambling, LA (sample)");
+    const split = await findPackFor([P(32.5266, -92.7165), P(32.78, -96.8)]);
     expect(split.pack).toBeNull();
     expect(split.partial.name).toBe("Grambling, LA (sample)"); // so the screen can say only one end is covered
-    expect(findPackFor([P(32.78, -96.8), P(33, -97)])).toEqual({ pack: null, partial: null });
+    expect(await findPackFor([P(32.78, -96.8), P(33, -97)])).toEqual({ pack: null, partial: null });
   });
 });

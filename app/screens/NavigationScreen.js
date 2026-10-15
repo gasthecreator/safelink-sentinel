@@ -33,6 +33,9 @@ export default function NavigationScreen() {
   const [typedError, setTypedError] = useState(null);
   const [closures, setClosures] = useState([]);
   const [avoidOn, setAvoidOn] = useState(true);
+  // bumped when the screen comes back into view, so maps downloaded meanwhile are picked up
+  const [mapsVersion, setMapsVersion] = useState(0);
+  useEffect(() => navigation.addListener("focus", () => setMapsVersion((v) => v + 1)), [navigation]);
 
   const readGps = async () => {
     setGps({ state: "loading" });
@@ -59,15 +62,32 @@ export default function NavigationScreen() {
     return typedPoint;
   }, [source, gps, places, placeId, typedPoint]);
 
+  const [found, setFound] = useState({ loading: true, pack: null, partial: null });
+  useEffect(() => {
+    if (!start || !destination) {
+      setFound({ loading: false, pack: null, partial: null });
+      return undefined;
+    }
+    let live = true;
+    setFound((f) => ({ ...f, loading: true }));
+    findPackFor([start, destination]).then((r) => {
+      if (live) setFound({ loading: false, ...r });
+    });
+    return () => {
+      live = false;
+    };
+  }, [start, destination, mapsVersion]);
+
   const outcome = useMemo(() => {
     if (!destination) return { kind: "no_destination" };
     if (!start) return { kind: "no_start" };
-    const { pack, partial } = findPackFor([start, destination]);
+    if (found.loading) return { kind: "loading" };
+    const { pack, partial } = found;
     if (!pack) return { kind: "no_pack", partial };
     // Blocked roads are only routed around if the person wants that; hazards are always listed.
     const avoid = avoidOn ? closures : closures.filter((c) => c.kind === "hazard");
     return { kind: "routed", pack, result: computeRoute(pack, start, destination, { mode, avoid }) };
-  }, [destination, start, mode, closures, avoidOn]);
+  }, [destination, start, found, mode, closures, avoidOn]);
 
   const applyTyped = () => {
     const p = parseCoordinates(typed);
@@ -177,8 +197,11 @@ export default function NavigationScreen() {
             {outcome.partial
               ? `The "${outcome.partial.name}" map covers only one of the two places. `
               : "None of the maps on this phone cover these places. "}
-            Use their position and the Maps button on the alert instead.
+            Download a map for this area while you have internet, or use their position and the Maps button on the alert instead.
           </Text>
+          <TouchableOpacity style={[styles.button, { marginTop: 12 }]} onPress={() => navigation.navigate("OfflineMaps")}>
+            <Text style={styles.buttonText}>Get offline maps</Text>
+          </TouchableOpacity>
         </Card>
       ) : null}
 
