@@ -56,12 +56,15 @@ function newDevice(network, name, store = {}) {
       outbox: require("../../services/mesh/Outbox.js").default,
       geo: require("../../services/mesh/GeoBroadcast.js").default,
       alerts: require("../../services/mesh/AlertManager.js").default,
+      roads: require("../../services/roads/RoadReportStore.js").default,
       peerCache: require("../../services/storage/PeerCache.js"),
       inbox: [],
     };
     device.relay.onMessageReceived((m) => device.inbox.push(m));
     // as MeshManager wires it: a verified message becomes an alert / relief request
-    device.relay.onMessageReceived((m) => device.alerts.handleIncoming(m).catch(() => {}));
+    device.relay.onMessageReceived((m) =>
+      (m.meta?.type === "road_report" ? device.roads : device.alerts).handleIncoming(m).catch(() => {})
+    );
   });
   return device;
 }

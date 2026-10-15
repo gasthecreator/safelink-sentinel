@@ -8,6 +8,7 @@ import AlertManager from "./AlertManager.js";
 import HealthMonitor from "../storage/HealthMonitor.js";
 import BleTransport from "../ble/BleTransport.js";
 import Outbox from "./Outbox.js";
+import RoadReportStore from "../roads/RoadReportStore.js";
 import { nowISO } from "../../utils/TimeUtils.js";
 
 class MeshManager {
@@ -25,11 +26,14 @@ class MeshManager {
         console.log("[SafeLink][MeshManager] Receive failed:", err.message)
       )
     );
-    MessageRelay.onMessageReceived((msg) =>
-      AlertManager.handleIncoming(msg).catch((err) =>
+    MessageRelay.onMessageReceived((msg) => {
+      // road reports have their own store and are not shown as alerts
+      const handler = msg.meta?.type === "road_report" ? RoadReportStore : AlertManager;
+      handler.handleIncoming(msg).catch((err) =>
         console.log("[SafeLink][MeshManager] Inbox failed:", err.message)
-      )
-    );
+      );
+    });
+    RoadReportStore.init().catch(() => {});
     await Outbox.init();
     // A peer coming into range is the moment waiting messages can go out.
     NodeDiscovery.onPeerDiscovered(() => Outbox.requestFlush());
