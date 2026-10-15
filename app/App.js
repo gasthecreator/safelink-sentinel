@@ -11,6 +11,7 @@ import OnboardingScreen from "./screens/OnboardingScreen";
 import AlertDetailScreen from "./screens/AlertDetailScreen";
 import DiagnosticsScreen from "./screens/DiagnosticsScreen";
 import PlacesScreen from "./screens/PlacesScreen";
+import OfflineMapsScreen from "./screens/OfflineMapsScreen";
 import FinderScreen from "./screens/FinderScreen";
 import NavigationScreen from "./screens/NavigationScreen";
 import ReportRoadScreen from "./screens/ReportRoadScreen";
@@ -60,6 +61,7 @@ export default function App() {
         <Stack.Screen name="PeerList" component={PeerListScreen} />
         <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} />
         <Stack.Screen name="Places" component={PlacesScreen} />
+        <Stack.Screen name="OfflineMaps" component={OfflineMapsScreen} />
         <Stack.Screen name="Finder" component={FinderScreen} />
         <Stack.Screen name="Navigation" component={NavigationScreen} />
         <Stack.Screen name="ReportRoad" component={ReportRoadScreen} />

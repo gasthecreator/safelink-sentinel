@@ -73,16 +73,59 @@ smaller pieces to stay within what the public servers allow; ask for one area at
 state or country, download an extract from [Geofabrik](https://download.geofabrik.de/) and
 convert it to Overpass JSON; the converter (`scripts/lib/osmToPack.js`) takes that format.
 
-Then register it in `app/services/navigation/packs.js` by adding a line to `PACKS`:
+To ship a pack inside the app, register it in `app/services/navigation/packs.js` by adding a line to `BUNDLED`:
 
 ```js
 { id: "your-town", load: () => require("../../assets/maps/your-town.json") },
 ```
 
+Bundled packs make the app bigger, so only the small sample is bundled. Everything else is meant to
+be **downloaded to the phone** (next section).
+
 Size: the Grambling sample (about 4.4 x 5.2 km of a small town, 106 KB) works out to roughly 5 KB per
 square kilometre. A dense city has many more roads per square kilometre, so expect several times that.
-Packs bundled this way ship inside the app. Downloading packs to the phone before a disaster is
-**not built yet**, and neither is choosing which areas a user keeps.
+
+## Downloading maps to the phone
+
+**Offline maps** (link at the bottom of the home screen, and a button when a route has no map)
+lists the maps a publisher offers, and downloads them to the phone while there is internet.
+
+How it is kept safe: the list of maps (the *catalog*) is signed with the publisher's private key,
+and the app has the matching public key built in (`app/constants/maps.js`).
+
+- The app checks the signature **before reading anything in the list**. An altered or forged list is refused.
+- The list carries each map's size and SHA-256. A downloaded file with another size or hash is thrown away.
+- The file must also load as a valid pack and cover the area the signed list promised.
+- A list *older* than one already seen is refused, so an attacker cannot replay an old signed list.
+- Downloads must be `https` (the build can allow `http` only for local testing), and map ids are
+  restricted so they cannot be used to write elsewhere on the phone.
+- A download goes to a temporary file and replaces nothing until every check passes. A failed,
+  cancelled or interrupted download leaves the maps already on the phone untouched, and an update
+  keeps the old version until the new one is verified.
+- Downloads are one at a time, ask first above 10 MB, and refuse if the phone is short on space.
+
+What this does not do: it cannot prove a map is *accurate*, only that it is the one the publisher
+signed. Whoever holds the signing key decides what every phone can download, so guard it.
+It does not resume partial downloads (a cancelled map starts again), update maps in the background,
+or choose areas for you.
+
+### Publishing maps (the person running the maps)
+
+```bash
+cd app
+node scripts/pack-keys.js                      # once: writes ~/.safelink/pack-signing.key, prints the public key
+# put the printed public key in constants/maps.js as MAP_CATALOG_PUBLIC_KEY and set MAP_CATALOG_URL
+
+node scripts/publish-pack-catalog.js --key ~/.safelink/pack-signing.key \
+  --base-url https://github.com/OWNER/REPO/releases/download/map-packs \
+  --out dist/maps  assets/maps/your-town.json
+```
+
+This writes `catalog.json` and one versioned file per map (`your-town-v1.json`) into `dist/maps`.
+Upload everything there to the `--base-url` location (any HTTPS host; a GitHub release works).
+Run it again with the same `--out` to publish an update: the catalog's sequence goes up and only
+changed maps get a new version. **Back up the private key and never commit it.** Until a public key
+is set in `constants/maps.js`, downloads are switched off in the app (it fails closed).
 
 ## Things worth knowing
 
