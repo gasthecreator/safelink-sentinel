@@ -138,8 +138,14 @@ is set in `constants/maps.js`, downloads are switched off in the app (it fails c
   the nearest road and the screen says how far away that is; the dashed line on the map is that gap.
 - **Directions:** a turn is announced only at a junction, and gentle bends on the same street are not.
   Names are whatever OpenStreetMap has, so the same road can be spelled two ways.
-- **Position updates:** the route is worked out from one fix. It does not follow you as you
-  move or re-route if you leave it; use **Try GPS again** to recalculate.
+- **Live directions:** with a GPS start, **Start live directions** follows the phone along the route:
+  distance to the next turn, distance and time left, a buzz when a turn is near. Leaving the route
+  (two fixes more than about 40-120 m away, a few seconds apart; poor-accuracy fixes are ignored)
+  works out a new route from where you are, at most once every 15 seconds. Reaching the end of the
+  mapped road says so and gives their direction and distance, because they may be off the roads in the
+  map; "arrived" only appears within 25 m of them. It needs the app open with the screen on: the app
+  does not track you in the background or with the phone locked. Without live mode the route is worked
+  out once; use **Try GPS again** to recalculate.
 
 ## Credit
 

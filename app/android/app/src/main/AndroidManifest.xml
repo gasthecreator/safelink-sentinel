@@ -12,6 +12,8 @@
     <!-- GPS position for alerts. Android 12+ requires COARSE to be declared with FINE
          so the user can choose "approximate" in the permission dialog. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- a short buzz when a turn is near, when you leave the route, and on arrival -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- Wi-Fi Direct (react-native-wifi-p2p declares none of these itself).

@@ -2,19 +2,29 @@
 // Directions to the sender of an alert, worked out on the phone from an offline map pack.
 // No internet. Start from GPS, a saved place, or typed coordinates; walk or drive.
 
-import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, useWindowDimensions } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Vibration, useWindowDimensions } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import RouteMap from "../components/RouteMap";
 import { findPackFor } from "../services/navigation/packs";
 import { route as computeRoute } from "../services/navigation/router";
 import { formatDistance, formatDuration } from "../services/navigation/mapView";
-import { getPositionForAlert } from "../services/location/LocationService";
+import { getPositionForAlert, watchPositionUpdates } from "../services/location/LocationService";
+import { startFollowing, update as followUpdate, canReroute, markRerouted } from "../services/navigation/follow";
 import { listPlaces } from "../services/location/PlaceStore";
 import { parseCoordinates } from "../services/location/places";
 import { sanitizePosition, describePosition } from "../services/location/position";
 import RoadReportStore from "../services/roads/RoadReportStore";
 import { describeKind } from "../services/roads/reports";
+
+// A buzz is a nicety: if the phone refuses it, directions carry on.
+const buzz = (pattern) => {
+  try {
+    Vibration.vibrate(pattern);
+  } catch {
+    // no vibration available
+  }
+};
 
 export default function NavigationScreen() {
   const navigation = useNavigation();
@@ -33,6 +43,15 @@ export default function NavigationScreen() {
   const [typedError, setTypedError] = useState(null);
   const [closures, setClosures] = useState([]);
   const [avoidOn, setAvoidOn] = useState(true);
+  // live directions: follow the phone along the route, re-route if it leaves it
+  const [live, setLive] = useState(false);
+  const [liveOrigin, setLiveOrigin] = useState(null);
+  const [livePos, setLivePos] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [liveNote, setLiveNote] = useState(null);
+  const follower = useRef(null);
+  const lastPos = useRef(null);
+  const lastAnnounced = useRef(-1);
   // bumped when the screen comes back into view, so maps downloaded meanwhile are picked up
   const [mapsVersion, setMapsVersion] = useState(0);
   useEffect(() => navigation.addListener("focus", () => setMapsVersion((v) => v + 1)), [navigation]);
@@ -62,32 +81,33 @@ export default function NavigationScreen() {
     return typedPoint;
   }, [source, gps, places, placeId, typedPoint]);
 
+  const routeStart = live ? liveOrigin : start;
   const [found, setFound] = useState({ loading: true, pack: null, partial: null });
   useEffect(() => {
-    if (!start || !destination) {
+    if (!routeStart || !destination) {
       setFound({ loading: false, pack: null, partial: null });
       return undefined;
     }
     let live = true;
     setFound((f) => ({ ...f, loading: true }));
-    findPackFor([start, destination]).then((r) => {
+    findPackFor([routeStart, destination]).then((r) => {
       if (live) setFound({ loading: false, ...r });
     });
     return () => {
       live = false;
     };
-  }, [start, destination, mapsVersion]);
+  }, [routeStart, destination, mapsVersion]);
 
   const outcome = useMemo(() => {
     if (!destination) return { kind: "no_destination" };
-    if (!start) return { kind: "no_start" };
+    if (!routeStart) return { kind: "no_start" };
     if (found.loading) return { kind: "loading" };
     const { pack, partial } = found;
     if (!pack) return { kind: "no_pack", partial };
     // Blocked roads are only routed around if the person wants that; hazards are always listed.
     const avoid = avoidOn ? closures : closures.filter((c) => c.kind === "hazard");
-    return { kind: "routed", pack, result: computeRoute(pack, start, destination, { mode, avoid }) };
-  }, [destination, start, found, mode, closures, avoidOn]);
+    return { kind: "routed", pack, result: computeRoute(pack, routeStart, destination, { mode, avoid }) };
+  }, [destination, routeStart, found, mode, closures, avoidOn]);
 
   const applyTyped = () => {
     const p = parseCoordinates(typed);
@@ -101,6 +121,76 @@ export default function NavigationScreen() {
   };
 
   const result = outcome.kind === "routed" ? outcome.result : null;
+
+  // a new route (first one, or after a re-route) restarts the follower from its beginning
+  useEffect(() => {
+    if (live && result && result.ok) {
+      follower.current = startFollowing(result);
+      lastAnnounced.current = -1;
+      setLiveNote((n) => (n && n.startsWith("You left") ? null : n));
+      if (lastPos.current) {
+        // show where you are on the new route straight away, without waiting for the next fix
+        const res = followUpdate(follower.current, lastPos.current, destination);
+        follower.current = res.state;
+        setProgress(res);
+      } else {
+        setProgress(null);
+      }
+    }
+  }, [live, result]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onFix = useCallback((position) => {
+    lastPos.current = position;
+    setLivePos(position);
+    if (!follower.current) return;
+    const res = followUpdate(follower.current, position, destination);
+    const prevState = follower.current;
+    follower.current = res.state;
+    setProgress(res);
+    if (res.ignored) return;
+    if (res.arrived || res.endOfRoad) {
+      if (lastAnnounced.current !== "end") buzz([0, 400, 200, 400]);
+      lastAnnounced.current = "end";
+      return;
+    }
+    if (res.next && res.next.inM <= 30 && res.next.index !== lastAnnounced.current && res.next.index < prevState.prep.route.steps.length - 1) {
+      lastAnnounced.current = res.next.index;
+      buzz(200);
+    }
+    if (res.offRoute && canReroute(res.state)) {
+      follower.current = markRerouted(res.state);
+      setLiveNote("You left the route. Working out a new one...");
+      buzz([0, 150, 100, 150]);
+      setLiveOrigin(position);
+    }
+  }, [destination]);
+
+  useEffect(() => {
+    if (!live) return undefined;
+    setLiveNote(null);
+    return watchPositionUpdates(onFix, (reason) =>
+      setLiveNote(reason === "denied" ? "Location permission was turned off, so directions cannot follow you." : "Lost the GPS signal. Directions will continue when it returns.")
+    );
+  }, [live, onFix]);
+
+  // road reports changed while navigating: work the route out again from where you are now
+  useEffect(() => {
+    if (live && lastPos.current) setLiveOrigin(lastPos.current);
+  }, [closures, avoidOn, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startLive = () => {
+    lastPos.current = start;
+    setLivePos(start);
+    setLiveOrigin(start);
+    setLiveNote(null);
+    setLive(true);
+  };
+  const stopLive = () => {
+    if (lastPos.current) setGps({ state: "ok", fix: { position: lastPos.current, stale: false } });
+    setLive(false);
+    setProgress(null);
+    follower.current = null;
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 48 }}>
@@ -239,7 +329,14 @@ export default function NavigationScreen() {
               Hazard reported near this route: {result.hazardsOnRoute.map((h) => h.note || "take care").join("; ")}.
             </Text>
           ) : null}
-          <RouteMap graph={outcome.pack} route={result} you={start} them={destination} closures={closures} width={mapWidth} height={300} />
+          {live ? (
+            <LivePanel progress={progress} note={liveNote} onStop={stopLive} />
+          ) : source === "gps" && gps.state === "ok" ? (
+            <TouchableOpacity style={[styles.button, { marginBottom: 12 }]} onPress={startLive}>
+              <Text style={styles.buttonText}>Start live directions</Text>
+            </TouchableOpacity>
+          ) : null}
+          <RouteMap graph={outcome.pack} route={result} you={live && livePos ? livePos : routeStart} them={destination} closures={closures} width={mapWidth} height={300} />
           {closures.length ? (
             <View style={{ marginTop: 10 }}>
               <Text style={styles.label}>Road reports in force</Text>
@@ -273,6 +370,38 @@ export default function NavigationScreen() {
     </ScrollView>
   );
 }
+
+const LivePanel = ({ progress, note, onStop }) => (
+  <View style={styles.live}>
+    {progress && progress.arrived ? (
+      <Text style={styles.liveBig}>You have arrived</Text>
+    ) : progress && progress.endOfRoad ? (
+      <>
+        <Text style={styles.liveBig}>End of the mapped road</Text>
+        {progress.toTarget ? (
+          <Text style={styles.liveText}>They are about {formatDistance(progress.toTarget.distanceM)} {progress.toTarget.direction} of here, off the roads in the map.</Text>
+        ) : null}
+        <Text style={styles.liveSmall}>Use Find them by Bluetooth to close the last stretch.</Text>
+      </>
+    ) : progress && progress.next ? (
+      <>
+        <Text style={styles.liveBig}>{progress.next.inM > 0 ? `In ${formatDistance(progress.next.inM)}` : "Now"}</Text>
+        <Text style={styles.liveText}>{progress.next.final ? "End of the mapped road" : progress.next.text}</Text>
+        <Text style={styles.liveSmall}>
+          {formatDistance(progress.remainingM)} to go · about {formatDuration(progress.remainingS)}
+          {progress.ignored ? " · waiting for a better GPS fix" : ""}
+        </Text>
+      </>
+    ) : (
+      <Text style={styles.liveText}>Waiting for your position...</Text>
+    )}
+    {note ? <Text style={styles.liveNote}>{note}</Text> : null}
+    <Text style={styles.liveSmall}>Keep the screen on: the phone stops following you if it locks.</Text>
+    <TouchableOpacity style={[styles.button, styles.stop]} onPress={onStop}>
+      <Text style={styles.buttonText}>Stop</Text>
+    </TouchableOpacity>
+  </View>
+);
 
 const Card = ({ children }) => <View style={styles.card}>{children}</View>;
 const Chip = ({ label, active, onPress }) => (
@@ -311,5 +440,11 @@ const styles = StyleSheet.create({
   stepNum: { color: "#38BDF8", fontWeight: "800", width: 28, fontSize: 16 },
   stepText: { color: "#F8FAFC", fontSize: 16 },
   stepDist: { color: "#94A3B8", fontSize: 13, marginTop: 2 },
+  live: { backgroundColor: "#0F2A4A", borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "#2563EB" },
+  liveBig: { color: "#F8FAFC", fontSize: 28, fontWeight: "800" },
+  liveText: { color: "#F8FAFC", fontSize: 19, fontWeight: "600", marginVertical: 4 },
+  liveSmall: { color: "#94A3B8", fontSize: 13, marginTop: 4 },
+  liveNote: { color: "#FBBF24", fontSize: 14, marginTop: 8 },
+  stop: { backgroundColor: "#DC2626", marginTop: 12 },
   attribution: { color: "#64748B", fontSize: 12, marginTop: 18, textAlign: "center" },
 });
