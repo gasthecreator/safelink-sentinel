@@ -127,6 +127,18 @@ Put airplane mode on (Bluetooth back on) to prove it needs no internet.
    versa for footpaths).
 4. Choose a start outside the area: it should say no offline map covers it, not draw nonsense.
 
+### Road report check
+
+1. On device A (somewhere on the sample map, or with a saved place or typed position there) open
+   **Report a road**, choose **Blocked**, add a note, and send.
+2. On device B (in range) open **Get directions** to an alert whose route would pass that spot: the
+   route should go round it, say how much longer it is, and list the report under "Road reports in
+   force" with a red mark on the map.
+3. On A report the same spot as **Got through**: B's route should go back to the direct way.
+4. Have a third device report "Got through" for a closure A made: it should show as *disputed* but still
+   be avoided until a second different device says so.
+5. Switch B to **Ignore them**: the direct route returns.
+
 ### Finder check (walking toward the sender)
 
 With the two devices in range and an alert from A showing on B:

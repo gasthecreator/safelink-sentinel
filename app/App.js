@@ -13,6 +13,7 @@ import DiagnosticsScreen from "./screens/DiagnosticsScreen";
 import PlacesScreen from "./screens/PlacesScreen";
 import FinderScreen from "./screens/FinderScreen";
 import NavigationScreen from "./screens/NavigationScreen";
+import ReportRoadScreen from "./screens/ReportRoadScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -61,6 +62,7 @@ export default function App() {
         <Stack.Screen name="Places" component={PlacesScreen} />
         <Stack.Screen name="Finder" component={FinderScreen} />
         <Stack.Screen name="Navigation" component={NavigationScreen} />
+        <Stack.Screen name="ReportRoad" component={ReportRoadScreen} />
         <Stack.Screen 
           name="AlertDetail" 
           component={AlertDetailScreen}

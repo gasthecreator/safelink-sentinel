@@ -396,6 +396,9 @@ export default function MeshHomeScreen({ navigation }) {
             )}
           </View>
           <View style={styles.footerLinks}>
+            <TouchableOpacity onPress={() => navigation.navigate("ReportRoad")}>
+              <Text style={styles.diagnosticsLink}>Report a road</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate("Places")}>
               <Text style={styles.diagnosticsLink}>Saved places</Text>
             </TouchableOpacity>
@@ -418,7 +421,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 13,
   },
-  footerLinks: { flexDirection: "row", justifyContent: "center", marginTop: 24 },
+  footerLinks: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 24 },
   diagnosticsLink: {
     color: "#64748B",
     textAlign: "center",

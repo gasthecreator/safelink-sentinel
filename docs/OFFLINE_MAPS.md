@@ -8,9 +8,10 @@ Maps, map tiles or any online service when someone is using it.
 ## What it is, and is not
 
 It is a **road map**: streets, paths and their names, the route, you and them. It has no
-buildings, terrain, satellite view or place labels. It follows the roads in the pack and
-**cannot know about closures, damage, flooding or blocked roads**: after a disaster the quickest
-route on the map may be impassable. Treat it as a guide and use your eyes.
+buildings, terrain, satellite view or place labels. The map itself knows nothing about closures,
+damage or flooding: it knows only what **people nearby have reported** (see "Road reports" below),
+so after a disaster the quickest route may still be impassable where nobody has reported it yet.
+Treat it as a guide and use your eyes.
 
 ## Using it
 
@@ -21,6 +22,36 @@ metres.
 
 If an alert's position or your start is outside every pack on the phone, the screen says so and
 the **Open in Maps app** button on the alert is the fallback.
+
+## Road reports
+
+From the home screen, **Report a road** lets you say what you can see where you are: **blocked**,
+**got through**, or a **hazard** (flooding, wires down), with an optional note. The report goes out
+over the mesh like an alert, to everyone in range now and anyone who arrives later (and is passed
+on), and phones that hear it **route around blocked roads** and warn about hazards near the route.
+Your own phone uses it straight away.
+
+Reports come from other people's phones and can be wrong or malicious, so the rules lean toward
+caution:
+
+- A **blocked** report is believed for **12 hours**, then expires (a report is remembered for 24).
+- It stays in force until the person who reported it says the road is passable, or **two different
+  phones** do. **One stranger saying "passable" does not cancel it**; the screen shows it as
+  *disputed*. Repeating "passable" from one phone still counts as one.
+- Roads within **40 m** of a blocked report are avoided. If that leaves no route at all, the screen
+  says so and offers **Show the route anyway** rather than quietly sending you through. **Ignore
+  them** is always available.
+- A closure reported right at your start or at their position never makes the trip impossible
+  (you still need to leave, or to reach them); it is shown as a warning.
+- Hazards do not change the route; they are listed if the route passes close to one.
+- Reports are checked like everything else from the network: only real kinds and valid positions are
+  accepted, notes are cleaned, and one phone can keep only its 30 newest reports (500 overall) so it
+  cannot flood the rest out.
+- A report says where its sender was when they sent it, and their phone's permanent ID is attached,
+  like an alert.
+
+What this cannot do: tell you about a closure nobody has reported, or tell a wrong report from a
+right one. A report is a signed statement that *someone* said so, not proof.
 
 ## Making a pack for your area
 
