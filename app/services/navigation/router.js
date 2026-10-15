@@ -25,6 +25,58 @@ export function bearingDeg(lat1, lon1, lat2, lon2) {
 const COMPASS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
 export const compassName = (bearing) => COMPASS[Math.round(bearing / 45) % 8];
 
+
+const M_PER_DEG_LAT = 111320;
+
+/** Metres from point p to the segment a-b (small areas: flat local projection). */
+function pointToSegmentM(p, a, b) {
+  const mLon = M_PER_DEG_LAT * Math.cos(rad(p.latitude));
+  const px = 0;
+  const py = 0;
+  const ax = (a[1] - p.longitude) * mLon;
+  const ay = (a[0] - p.latitude) * M_PER_DEG_LAT;
+  const bx = (b[1] - p.longitude) * mLon;
+  const by = (b[0] - p.latitude) * M_PER_DEG_LAT;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
+  return Math.hypot(ax + t * dx - px, ay + t * dy - py);
+}
+
+/** Smallest distance from a point to a drawn route line. */
+function distanceToLineM(p, geometry) {
+  if (geometry.length === 1) return distanceM(p.latitude, p.longitude, geometry[0][0], geometry[0][1]);
+  let best = Infinity;
+  for (let i = 1; i < geometry.length; i++) best = Math.min(best, pointToSegmentM(p, geometry[i - 1], geometry[i]));
+  return best;
+}
+
+/**
+ * Which roads pass within each closure's radius. Returns the combined set (for the search)
+ * and, per closure, its own edges (to tell which closures a route would have run into).
+ */
+function blockedEdges(graph, closures) {
+  const blocked = new Uint8Array(graph.edgeCount);
+  const perClosure = closures.map(() => []);
+  closures.forEach((c, ci) => {
+    const dLat = c.radiusM / M_PER_DEG_LAT;
+    const dLon = c.radiusM / (M_PER_DEG_LAT * Math.max(0.2, Math.cos(rad(c.latitude))));
+    for (let e = 0; e < graph.edgeCount; e++) {
+      const a = graph.ea[e];
+      const b = graph.eb[e];
+      const la = graph.lat[a], lo = graph.lon[a], lb = graph.lat[b], lob = graph.lon[b];
+      if (Math.max(la, lb) < c.latitude - dLat || Math.min(la, lb) > c.latitude + dLat) continue;
+      if (Math.max(lo, lob) < c.longitude - dLon || Math.min(lo, lob) > c.longitude + dLon) continue;
+      if (pointToSegmentM(c, [la, lo], [lb, lob]) <= c.radiusM) {
+        blocked[e] = 1;
+        perClosure[ci].push(e);
+      }
+    }
+  });
+  return { blocked, perClosure };
+}
+
 // Speeds in metres per second. Walking is the same on any road except steps.
 const WALK_SPEED = 1.4;
 const DRIVE_SPEED = {
@@ -116,7 +168,7 @@ class Heap {
   get size() { return this.items.length; }
 }
 
-function shortestPath(graph, mode, from, to) {
+function shortestPath(graph, mode, from, to, blocked = null) {
   const index = modeIndex(graph, mode);
   const n = graph.nodeCount;
   const g = new Float64Array(n).fill(Infinity);
@@ -140,6 +192,7 @@ function shortestPath(graph, mode, from, to) {
       const v = index.to[k];
       if (done[v]) continue;
       const e = index.arcEdge[k];
+      if (blocked && blocked[e]) continue;
       const cost = g[u] + graph.len[e] / edgeSpeed(graph, e, mode);
       if (cost < g[v]) {
         g[v] = cost;
@@ -278,11 +331,13 @@ const validPoint = (p) =>
  * @param {object} graph from loadPack
  * @param {{latitude:number, longitude:number}} from
  * @param {{latitude:number, longitude:number}} to
- * @param {{mode?: "walk"|"drive"}} options
+ * @param {{mode?: "walk"|"drive", avoid?: object[]}} options
+ *   avoid: closures from effectiveClosures(); "blocked" ones are routed around, "hazard"
+ *   ones are only reported when the route passes close to them
  * @returns {{ok:true, mode, distanceM, durationS, geometry:number[][], steps, start, end, warnings:string[]}
  *         | {ok:false, reason:string, message:string}}
  */
-export function route(graph, from, to, { mode = WALK } = {}) {
+export function route(graph, from, to, { mode = WALK, avoid = [] } = {}) {
   if (!validPoint(from) || !validPoint(to)) {
     return { ok: false, reason: "bad_input", message: "A position was missing or invalid." };
   }
@@ -318,23 +373,63 @@ export function route(graph, from, to, { mode = WALK } = {}) {
   if (index.component[a.node] !== index.component[b.node]) {
     return { ok: false, reason: "no_route", message: "The map has no connected route between these two places." };
   }
-  const path = shortestPath(graph, mode, a.node, b.node);
+  // Closures near either end are not allowed to make the trip impossible: if you are standing
+  // at a reported blockage you still need to get away from it, and if they are beside one you
+  // still need to reach them. They are reported as warnings instead.
+  const NEAR_END_M = 60;
+  const closures = [];
+  for (const c of avoid) {
+    if (!c || c.kind !== "blocked" || !validPoint(c) || !(c.radiusM > 0)) continue;
+    const nearEnd = [snappedStart, snappedEnd].some((p) => distanceM(c.latitude, c.longitude, p.latitude, p.longitude) <= c.radiusM + NEAR_END_M);
+    if (nearEnd) warnings.push("A road closure is reported right at your start or at their position; the route may pass through it.");
+    else closures.push(c);
+  }
+  const closureEdges = closures.length ? blockedEdges(graph, closures) : null;
+
+  const baseline = shortestPath(graph, mode, a.node, b.node);
+  const path = closureEdges ? shortestPath(graph, mode, a.node, b.node, closureEdges.blocked) : baseline;
   if (!path) {
+    if (closureEdges && baseline) {
+      return {
+        ok: false,
+        reason: "blocked_by_reports",
+        message: "Reported road closures block every route this map knows. Reports can be wrong; you can show the route anyway.",
+        closures: closures.length,
+      };
+    }
     return {
       ok: false, reason: "no_route",
       message: mode === DRIVE ? "No route by road (one-way streets may block it). Try walking." : "No route found.",
     };
   }
 
+  // Which reported closures did the quickest route (without reports) run into? Those were avoided.
+  let detour = null;
+  if (closureEdges && baseline && baseline.edges.some((e) => closureEdges.blocked[e])) {
+    const hit = new Set(baseline.edges);
+    const avoided = closures.filter((_, i) => closureEdges.perClosure[i].some((e) => hit.has(e)));
+    const sum = (edges) => edges.reduce((t, e) => t + graph.len[e], 0);
+    detour = {
+      closures: avoided,
+      extraM: Math.round(sum(path.edges) - sum(baseline.edges)),
+      extraS: Math.round(path.seconds - baseline.seconds),
+    };
+  }
+
   const geometry = path.nodes.map((i) => [graph.lat[i], graph.lon[i]]);
   let total = 0;
   for (const e of path.edges) total += graph.len[e];
+  const hazardsOnRoute = avoid.filter(
+    (c) => c && c.kind === "hazard" && validPoint(c) && distanceToLineM(c, geometry) <= (c.radiusM || 40) + 20
+  );
   return {
     ok: true,
     mode,
     distanceM: Math.round(total),
     durationS: Math.round(path.seconds),
     geometry,
+    detour,
+    hazardsOnRoute,
     steps: buildSteps(graph, path.nodes, path.edges, mode),
     start: snappedStart,
     end: snappedEnd,

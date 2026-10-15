@@ -13,6 +13,8 @@ import { getPositionForAlert } from "../services/location/LocationService";
 import { listPlaces } from "../services/location/PlaceStore";
 import { parseCoordinates } from "../services/location/places";
 import { sanitizePosition, describePosition } from "../services/location/position";
+import RoadReportStore from "../services/roads/RoadReportStore";
+import { describeKind } from "../services/roads/reports";
 
 export default function NavigationScreen() {
   const navigation = useNavigation();
@@ -29,6 +31,8 @@ export default function NavigationScreen() {
   const [typed, setTyped] = useState("");
   const [typedPoint, setTypedPoint] = useState(null);
   const [typedError, setTypedError] = useState(null);
+  const [closures, setClosures] = useState([]);
+  const [avoidOn, setAvoidOn] = useState(true);
 
   const readGps = async () => {
     setGps({ state: "loading" });
@@ -38,6 +42,15 @@ export default function NavigationScreen() {
   useEffect(() => {
     readGps();
     listPlaces().then(setPlaces).catch(() => {});
+    // road reports from people nearby: kept current, since they expire and new ones arrive
+    const refresh = () => setClosures(RoadReportStore.closures());
+    RoadReportStore.init().then(refresh).catch(() => {});
+    const unsubscribe = RoadReportStore.subscribe(refresh);
+    const timer = setInterval(refresh, 60000);
+    return () => {
+      unsubscribe();
+      clearInterval(timer);
+    };
   }, []);
 
   const start = useMemo(() => {
@@ -51,8 +64,10 @@ export default function NavigationScreen() {
     if (!start) return { kind: "no_start" };
     const { pack, partial } = findPackFor([start, destination]);
     if (!pack) return { kind: "no_pack", partial };
-    return { kind: "routed", pack, result: computeRoute(pack, start, destination, { mode }) };
-  }, [destination, start, mode]);
+    // Blocked roads are only routed around if the person wants that; hazards are always listed.
+    const avoid = avoidOn ? closures : closures.filter((c) => c.kind === "hazard");
+    return { kind: "routed", pack, result: computeRoute(pack, start, destination, { mode, avoid }) };
+  }, [destination, start, mode, closures, avoidOn]);
 
   const applyTyped = () => {
     const p = parseCoordinates(typed);
@@ -132,6 +147,16 @@ export default function NavigationScreen() {
             </View>
           ) : null}
 
+          {closures.some((c) => c.kind === "blocked") ? (
+            <>
+              <Text style={styles.label}>Road reports from people nearby</Text>
+              <View style={styles.row}>
+                <Chip label="Avoid reported closures" active={avoidOn} onPress={() => setAvoidOn(true)} />
+                <Chip label="Ignore them" active={!avoidOn} onPress={() => setAvoidOn(false)} />
+              </View>
+            </>
+          ) : null}
+
           <Text style={styles.label}>Travelling</Text>
           <View style={styles.row}>
             <Chip label="On foot" active={mode === "walk"} onPress={() => setMode("walk")} />
@@ -158,7 +183,15 @@ export default function NavigationScreen() {
       ) : null}
 
       {result && !result.ok ? (
-        <Card><Text style={styles.big}>No route</Text><Text style={styles.body}>{result.message}</Text></Card>
+        <Card>
+          <Text style={styles.big}>{result.reason === "blocked_by_reports" ? "Reported closures block the way" : "No route"}</Text>
+          <Text style={styles.body}>{result.message}</Text>
+          {result.reason === "blocked_by_reports" ? (
+            <TouchableOpacity style={[styles.button, { marginTop: 12 }]} onPress={() => setAvoidOn(false)}>
+              <Text style={styles.buttonText}>Show the route anyway</Text>
+            </TouchableOpacity>
+          ) : null}
+        </Card>
       ) : null}
 
       {result && result.ok ? (
@@ -170,9 +203,32 @@ export default function NavigationScreen() {
             </Text>
           </Card>
           {result.warnings.map((w) => (
-            <Text key={w} style={styles.warn}>{w} The first or last part is off the map.</Text>
+            <Text key={w} style={styles.warn}>{w}</Text>
           ))}
-          <RouteMap graph={outcome.pack} route={result} you={start} them={destination} width={mapWidth} height={300} />
+          {result.detour && result.detour.closures.length ? (
+            <Text style={styles.detour}>
+              Going around {result.detour.closures.length} reported closure{result.detour.closures.length === 1 ? "" : "s"}:
+              {" "}about {formatDistance(Math.max(0, result.detour.extraM))} and {formatDuration(Math.max(0, result.detour.extraS))} longer.
+            </Text>
+          ) : null}
+          {result.hazardsOnRoute && result.hazardsOnRoute.length ? (
+            <Text style={styles.warn}>
+              Hazard reported near this route: {result.hazardsOnRoute.map((h) => h.note || "take care").join("; ")}.
+            </Text>
+          ) : null}
+          <RouteMap graph={outcome.pack} route={result} you={start} them={destination} closures={closures} width={mapWidth} height={300} />
+          {closures.length ? (
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.label}>Road reports in force</Text>
+              {closures.map((c, i) => (
+                <Text key={i} style={styles.reportLine}>
+                  {c.kind === "blocked" ? "✕" : "!"} {describeKind(c.kind)}{c.note ? `: ${c.note}` : ""}{" "}
+                  ({Math.max(1, Math.round((Date.now() - c.reportedAt) / 60000))} min ago
+                  {c.reporters > 1 ? `, ${c.reporters} phones` : ""}{c.disputed ? ", disputed" : ""})
+                </Text>
+              ))}
+            </View>
+          ) : null}
           <Text style={styles.label}>Directions</Text>
           {result.steps.map((s, i) => (
             <View key={i} style={styles.step}>
@@ -218,6 +274,8 @@ const styles = StyleSheet.create({
   big: { color: "#F8FAFC", fontSize: 26, fontWeight: "800", marginBottom: 4 },
   body: { color: "#CBD5E1", fontSize: 15, lineHeight: 21 },
   warn: { color: "#FBBF24", fontSize: 13, marginBottom: 8 },
+  detour: { color: "#93C5FD", fontSize: 14, marginBottom: 8 },
+  reportLine: { color: "#CBD5E1", fontSize: 13, marginBottom: 4 },
   error: { color: "#F87171", fontSize: 13, marginTop: 8 },
   link: { color: "#38BDF8", fontSize: 14, marginTop: 6, textDecorationLine: "underline" },
   place: { backgroundColor: "#111C30", borderRadius: 10, padding: 12, marginBottom: 6, borderWidth: 1, borderColor: "#1E293B" },

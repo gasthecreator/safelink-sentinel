@@ -12,7 +12,7 @@ const ROUTE = "#2563EB";
 const ROAD = "#94A3B8";
 const MAJOR = "#64748B";
 
-export default function RouteMap({ graph, route, you, them, width = 340, height = 300 }) {
+export default function RouteMap({ graph, route, you, them, closures = [], width = 340, height = 300 }) {
   const [zoom, setZoom] = useState(1);
 
   const view = useMemo(() => {
@@ -56,6 +56,26 @@ export default function RouteMap({ graph, route, you, them, width = 340, height 
               strokeLinejoin="round"
             />
           ) : null}
+          {closures.map((c, i) => {
+            const at = xy(c.latitude, c.longitude);
+            if (at.x < -20 || at.x > width + 20 || at.y < -20 || at.y > height + 20) return null;
+            const blocked = c.kind === "blocked";
+            const color = blocked ? "#DC2626" : "#D97706";
+            const radius = Math.max(9, c.radiusM / view.metersPerPixel);
+            return (
+              <React.Fragment key={`closure-${i}`}>
+                <Circle cx={at.x} cy={at.y} r={radius} fill={color} fillOpacity={0.14} stroke={color} strokeWidth={1.5} strokeDasharray="3,3" />
+                {blocked ? (
+                  <>
+                    <Line x1={at.x - 6} y1={at.y - 6} x2={at.x + 6} y2={at.y + 6} stroke={color} strokeWidth={3} strokeLinecap="round" />
+                    <Line x1={at.x - 6} y1={at.y + 6} x2={at.x + 6} y2={at.y - 6} stroke={color} strokeWidth={3} strokeLinecap="round" />
+                  </>
+                ) : (
+                  <SvgText x={at.x} y={at.y + 5} fontSize={16} fontWeight="bold" fill={color} textAnchor="middle">!</SvgText>
+                )}
+              </React.Fragment>
+            );
+          })}
           {youXY ? <Marker at={youXY} color="#16A34A" label="You" /> : null}
           {themXY ? <Marker at={themXY} color="#DC2626" label="Them" /> : null}
           {/* north arrow and scale bar */}
