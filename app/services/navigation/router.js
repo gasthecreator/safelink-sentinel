@@ -291,6 +291,10 @@ function buildSteps(graph, nodes, edges, mode) {
     }
   }
 
+  // distance along the route at each node, so a step knows where on the route it happens
+  const cum = [0];
+  for (const e of edges) cum.push(cum[cum.length - 1] + graph.len[e]);
+
   const steps = merged.map((leg, idx) => {
     const [lat, lon] = pt(leg.startIdx);
     const t = leg.turn;
@@ -305,7 +309,7 @@ function buildSteps(graph, nodes, edges, mode) {
     else if (abs >= 60) text = `Turn ${side}${onto}`;
     else if (abs >= 20) text = `Bear ${side}${onto}`;
     else text = `Continue onto ${leg.label}`;
-    return { text, distanceM: Math.round(leg.distanceM), lat, lon };
+    return { text, distanceM: Math.round(leg.distanceM), lat, lon, alongM: Math.round(cum[leg.startIdx]) };
   });
   // Never read the same instruction twice in a row: two gentle bends in a row are one bend.
   const deduped = [];
@@ -315,7 +319,7 @@ function buildSteps(graph, nodes, edges, mode) {
     else deduped.push(step);
   }
   const [endLat, endLon] = pt(nodes.length - 1);
-  deduped.push({ text: "You have arrived", distanceM: 0, lat: endLat, lon: endLon });
+  deduped.push({ text: "You have arrived", distanceM: 0, lat: endLat, lon: endLon, alongM: Math.round(cum[cum.length - 1]) });
   return deduped;
 }
 

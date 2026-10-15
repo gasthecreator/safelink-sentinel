@@ -79,3 +79,36 @@ export async function getPositionForAlert(now = () => Date.now()) {
     approximate: position.accuracyM != null && position.accuracyM > APPROXIMATE_ABOVE_M,
   };
 }
+
+/**
+ * Follow the phone's position as it moves (for live directions).
+ * onFix(position) gets each sanitized fix; onError(reason) gets denied | unavailable | timeout | error.
+ * Returns a function that stops watching.
+ */
+export function watchPositionUpdates(onFix, onError = () => {}) {
+  let id = null;
+  try {
+    id = Geolocation.watchPosition(
+      (fix) => {
+        const position = sanitizePosition({
+          latitude: fix.coords.latitude,
+          longitude: fix.coords.longitude,
+          accuracyM: fix.coords.accuracy,
+          fixedAt: fix.timestamp,
+        });
+        if (position) onFix(position);
+      },
+      (error) => onError(reasonFor(error)),
+      { enableHighAccuracy: true, distanceFilter: 5, interval: 2000, fastestInterval: 1000, timeout: 30000, maximumAge: 2000 }
+    );
+  } catch {
+    onError("error");
+  }
+  return () => {
+    try {
+      if (id !== null) Geolocation.clearWatch(id);
+    } catch {
+      // nothing to stop
+    }
+  };
+}
