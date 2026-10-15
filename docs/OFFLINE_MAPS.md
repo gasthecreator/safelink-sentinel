@@ -106,8 +106,10 @@ and the app has the matching public key built in (`app/constants/maps.js`).
 
 What this does not do: it cannot prove a map is *accurate*, only that it is the one the publisher
 signed. Whoever holds the signing key decides what every phone can download, so guard it.
-It does not resume partial downloads (a cancelled map starts again), update maps in the background,
-or choose areas for you.
+Big maps download in 4 MB pieces that are kept on the phone, so a dropped connection, a cancel or an
+app restart carries on from the last finished piece (a failed piece is retried a few times first). A
+server that cannot do partial downloads gets a single download instead. Maps are not updated in the
+background, and the app does not choose areas for you.
 
 ### Publishing maps (the person running the maps)
 

@@ -244,3 +244,135 @@ describe("shipped configuration", () => {
     if (cfg.MAP_CATALOG_PUBLIC_KEY) expect(Buffer.from(cfg.MAP_CATALOG_PUBLIC_KEY, "base64").length).toBe(32);
   });
 });
+
+// ---- resumable (chunked) downloads ----
+describe("resumable downloads", () => {
+  const big = JSON.stringify({ ...pack, name: "x".repeat(300) }); // a few hundred bytes: many tiny chunks
+  const bigEntry = (over = {}) => ({
+    ...entryFor(), sizeBytes: Buffer.byteLength(big), sha256: sha(big), url: "https://x/big.json", ...over,
+  });
+
+  function rangeFs(opts) {
+    const fs = fakeFs(opts);
+    fs.served["https://x/big.json"] = big;
+    fs.rangeCalls = [];
+    fs.failRangeAt = null; // chunk start offsets that fail once each
+    fs.rangeMode = "206"; // or "200" (server ignores Range)
+    fs.corruptStart = null;
+    fs.appendFrom = async (dest, src) => { fs.files.set(dest, (fs.files.get(dest) || "") + fs.files.get(src)); };
+    fs.downloadRange = ({ url, to, start, end, onProgress }) => {
+      let cancelled = false;
+      fs.rangeCalls.push([start, end]);
+      const done = (async () => {
+        await Promise.resolve();
+        if (fs.hold) await fs.hold;
+        if (cancelled) throw Object.assign(new Error("cancelled"), { cancelled: true });
+        if (fs.failRangeAt && fs.failRangeAt.has(start)) { fs.failRangeAt.delete(start); throw new Error("connection lost"); }
+        const body = Buffer.from(fs.served[url]);
+        if (fs.rangeMode === "200") { fs.files.set(to, fs.served[url]); return { status: 200 }; }
+        let piece = body.subarray(start, end + 1).toString();
+        if (fs.corruptStart === start) piece = piece.replace(/./, "#");
+        fs.files.set(to, piece);
+        onProgress && onProgress({ bytes: piece.length });
+        return { status: 206 };
+      })();
+      return { done, cancel() { cancelled = true; } };
+    };
+    return fs;
+  }
+  const mk = (fs) => createPackStore(() => fs, { chunkBytes: 100, retryDelayMs: 0 });
+
+  test("downloads in pieces, assembles, installs, leaves no pieces behind", async () => {
+    const fs = rangeFs();
+    const store = mk(fs);
+    const prog = [];
+    await store.install(bigEntry(), { onProgress: (p) => prog.push(p.bytes) });
+    expect(fs.rangeCalls.length).toBe(Math.ceil(Buffer.byteLength(big) / 100));
+    expect((await store.read("test-area")).format).toBe(1);
+    expect([...fs.files.keys()].sort()).toEqual(["/maps/manifest.json", "/maps/test-area-v1.json"]);
+    expect(prog[prog.length - 1]).toBe(Buffer.byteLength(big));
+    expect([...prog].sort((a, b) => a - b)).toEqual(prog); // never goes backwards
+  });
+
+  test("a dropped connection is retried and the download still completes", async () => {
+    const fs = rangeFs();
+    fs.failRangeAt = new Set([100, 200]);
+    const store = mk(fs);
+    await store.install(bigEntry());
+    expect((await store.installed()).length).toBe(1);
+  });
+
+  test("cancel keeps finished pieces; a later install resumes without re-fetching them", async () => {
+    const fs = rangeFs();
+    const store = mk(fs);
+    // fail a late chunk permanently the first time (more failures than retries)
+    const total = Math.ceil(Buffer.byteLength(big) / 100);
+    const lateStart = (total - 1) * 100;
+    let n = 0;
+    const orig = fs.downloadRange;
+    fs.downloadRange = (a) => (a.start === lateStart && n++ < 10 ? { done: Promise.reject(new Error("offline")), cancel() {} } : orig(a));
+    await expect(store.install(bigEntry())).rejects.toMatchObject({ code: "download" });
+    expect(await store.installed()).toEqual([]);
+    const kept = [...fs.files.keys()].filter((k) => /\.c\d+$/.test(k));
+    expect(kept.length).toBe(total - 1);
+    fs.rangeCalls.length = 0;
+    fs.downloadRange = orig;
+    // "restart" the app, then try again
+    const again = mk(fs);
+    await again.install(bigEntry());
+    expect(fs.rangeCalls).toEqual([[lateStart, Buffer.byteLength(big) - 1]]); // only the missing piece
+    expect((await again.installed()).length).toBe(1);
+    expect([...fs.files.keys()].some((k) => k.endsWith(".c0") || k.endsWith("partial.json"))).toBe(false);
+  });
+
+  test("a different map (or version) never reuses another download's pieces", async () => {
+    const fs = rangeFs();
+    const store = mk(fs);
+    const orig = fs.downloadRange;
+    fs.downloadRange = (a) => (a.start >= 200 ? { done: Promise.reject(new Error("offline")), cancel() {} } : orig(a));
+    await expect(store.install(bigEntry())).rejects.toMatchObject({ code: "download" });
+    fs.downloadRange = orig;
+    fs.rangeCalls.length = 0;
+    fs.served["https://x/big2.json"] = big;
+    await store.install(bigEntry({ version: 2, url: "https://x/big2.json" }));
+    expect(fs.rangeCalls[0][0]).toBe(0); // started from the beginning
+    expect(fs.rangeCalls.length).toBe(Math.ceil(Buffer.byteLength(big) / 100));
+  });
+
+  test("a corrupt piece fails the checksum, and its pieces are discarded", async () => {
+    const fs = rangeFs();
+    fs.corruptStart = 100;
+    const store = mk(fs);
+    await expect(store.install(bigEntry())).rejects.toMatchObject({ code: "hash" });
+    expect([...fs.files.keys()]).toEqual([]);
+    fs.corruptStart = null;
+    await store.install(bigEntry());
+    expect((await store.installed()).length).toBe(1);
+  });
+
+  test("a server that ignores Range still works (whole file in one go)", async () => {
+    const fs = rangeFs();
+    fs.rangeMode = "200";
+    const store = mk(fs);
+    await store.install(bigEntry());
+    expect(fs.rangeCalls.length).toBe(1);
+    expect((await store.installed()).length).toBe(1);
+    expect([...fs.files.keys()].sort()).toEqual(["/maps/manifest.json", "/maps/test-area-v1.json"]);
+  });
+
+  test("cancel mid-download stops, reports cancelled, keeps pieces for resume", async () => {
+    const fs = rangeFs();
+    const store = mk(fs);
+    let release;
+    fs.hold = new Promise((r) => { release = r; });
+    const p = store.install(bigEntry());
+    await new Promise((r) => setImmediate(r));
+    store.cancel();
+    release();
+    await expect(p).rejects.toMatchObject({ code: "cancelled" });
+    expect(store.busy).toBe(false);
+    fs.hold = null;
+    await store.install(bigEntry());
+    expect((await store.installed()).length).toBe(1);
+  });
+});

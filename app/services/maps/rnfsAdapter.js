@@ -32,6 +32,37 @@ export default {
   async freeBytes() {
     return Number((await RNFS.getFSInfo()).freeSpace);
   },
+  /** Appends the whole of file `src` to `dest` (creating it). Pieces are small, so base64 is fine. */
+  async appendFrom(dest, src) {
+    await RNFS.appendFile(dest, await RNFS.readFile(src, "base64"), "base64");
+  },
+  /** Downloads bytes start..end (inclusive) into `to`. Resolves { status }: 206 for a range, 200 if the server sent everything. */
+  downloadRange({ url, to, start, end, onProgress }) {
+    let cancelled = false;
+    const job = RNFS.downloadFile({
+      fromUrl: url,
+      toFile: to,
+      headers: { Range: `bytes=${start}-${end}` },
+      background: false,
+      progressInterval: 250,
+      progress: (p) => onProgress && onProgress({ bytes: p.bytesWritten }),
+    });
+    const done = job.promise.then((result) => {
+      if (cancelled) throw Object.assign(new Error("cancelled"), { cancelled: true });
+      if (result.statusCode !== 206 && result.statusCode !== 200) throw new Error(`the server answered ${result.statusCode}`);
+      return { status: result.statusCode };
+    }, (err) => {
+      if (cancelled) throw Object.assign(new Error("cancelled"), { cancelled: true });
+      throw err;
+    });
+    return {
+      done,
+      cancel() {
+        cancelled = true;
+        RNFS.stopDownload(job.jobId);
+      },
+    };
+  },
   /** Starts a download and returns { done: Promise, cancel() }. Redirects are followed. */
   download({ url, to, onProgress }) {
     let cancelled = false;

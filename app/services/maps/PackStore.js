@@ -21,11 +21,14 @@ export class PackError extends Error {
 
 const MANIFEST = "manifest.json";
 const MANIFEST_TMP = "manifest.tmp";
+const PARTIAL = "partial.json"; // which download's pieces are being kept so it can resume
+const DEFAULT_CHUNK_BYTES = 4 * 1024 * 1024;
+const CHUNK_RETRIES = 3;
 const SPACE_MARGIN = 5 * 1024 * 1024; // keep this much free after installing
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 const sameBbox = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === 4 && a.every((v, i) => near(v, b[i]));
 
-export function createPackStore(getFs) {
+export function createPackStore(getFs, { chunkBytes = DEFAULT_CHUNK_BYTES, retryDelayMs = 1500 } = {}) {
   let fs = null;
   let manifest = { format: 1, lastSequence: 0, packs: {} };
   let ready = null;
@@ -33,6 +36,29 @@ export function createPackStore(getFs) {
 
   const path = (name) => `${fs.root}/${name}`;
   const fileFor = (id, version) => `${id}-v${version}.json`;
+
+  const chunkName = (part, i) => `${part.id}-v${part.version}.c${i}`;
+  const chunkCount = (size, chunk) => Math.ceil(size / chunk);
+  const chunkLen = (part, i) => Math.min(part.chunkBytes, part.sizeBytes - i * part.chunkBytes);
+
+  async function readPartial() {
+    try {
+      if (!(await fs.exists(path(PARTIAL)))) return null;
+      const p = JSON.parse(await fs.readText(path(PARTIAL)));
+      const ok =
+        p && ID_PATTERN.test(p.id) && Number.isInteger(p.version) && Number.isInteger(p.sizeBytes) && p.sizeBytes > 0 &&
+        Number.isInteger(p.chunkBytes) && p.chunkBytes > 0 && typeof p.sha256 === "string";
+      return ok ? p : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function clearPartial() {
+    const part = await readPartial();
+    if (part) for (let i = 0; i < chunkCount(part.sizeBytes, part.chunkBytes); i++) await fs.remove(path(chunkName(part, i))).catch(() => {});
+    await fs.remove(path(PARTIAL)).catch(() => {});
+  }
 
   async function saveManifest() {
     // write beside, then move over: a crash mid-write cannot leave a half-written manifest
@@ -65,10 +91,106 @@ export function createPackStore(getFs) {
     // tidy up whatever a crash or a cancelled download left behind
     try {
       const keep = new Set([MANIFEST, ...Object.values(manifest.packs).map((e) => e.file)]);
+      // the pieces of one interrupted download are kept so it can carry on where it stopped
+      const part = await readPartial();
+      if (part) {
+        keep.add(PARTIAL);
+        for (let i = 0; i < chunkCount(part.sizeBytes, part.chunkBytes); i++) keep.add(chunkName(part, i));
+      }
       for (const name of await fs.list(fs.root)) if (!keep.has(name)) await fs.remove(path(name));
     } catch (err) {
       console.log("[SafeLink][Maps] Could not tidy the maps folder:", err.message);
     }
+  }
+
+  // Download an entry into `tmp`. A big map is fetched in pieces (HTTP Range requests) that are kept on
+  // disk, so a dropped connection or a cancel resumes from the last finished piece. A server that does
+  // not support ranges gets a plain single download.
+  async function fetchInto(entry, tmp, onProgress) {
+    const report = (bytes) => onProgress && onProgress({ bytes, total: entry.sizeBytes });
+    const fail = (err) => {
+      if (err && err.cancelled) throw new PackError("cancelled", "Download cancelled.");
+      throw new PackError("download", err && err.message ? `Download failed: ${err.message}` : "Download failed. Check the internet connection.");
+    };
+    const single = async () => {
+      await clearPartial();
+      const job = fs.download({ url: entry.url, to: tmp, onProgress });
+      current = job;
+      try {
+        await job.done;
+      } catch (err) {
+        fail(err);
+      }
+    };
+    const n = chunkCount(entry.sizeBytes, chunkBytes);
+    if (n <= 1 || !fs.downloadRange) return single();
+
+    let part = await readPartial();
+    const same = part && part.id === entry.id && part.version === entry.version && part.sha256 === entry.sha256 &&
+      part.sizeBytes === entry.sizeBytes && part.chunkBytes === chunkBytes;
+    if (!same) {
+      await clearPartial();
+      part = { id: entry.id, version: entry.version, sha256: entry.sha256, sizeBytes: entry.sizeBytes, chunkBytes };
+      await fs.writeText(path(PARTIAL), JSON.stringify(part));
+    }
+
+    let cancelled = false;
+    let active = null;
+    current = { cancel() { cancelled = true; if (active) active.cancel(); } };
+    let done = 0;
+    for (let i = 0; i < n; i++) {
+      const file = path(chunkName(part, i));
+      const len = chunkLen(part, i);
+      if ((await fs.exists(file)) && (await fs.size(file)) === len) {
+        done += len;
+        continue;
+      }
+      await fs.remove(file).catch(() => {});
+      let lastErr = null;
+      for (let attempt = 0; attempt <= CHUNK_RETRIES; attempt++) {
+        if (cancelled) fail({ cancelled: true });
+        if (attempt > 0 && retryDelayMs) await new Promise((r) => setTimeout(r, retryDelayMs * attempt));
+        if (cancelled) fail({ cancelled: true });
+        const start = i * chunkBytes;
+        active = fs.downloadRange({ url: entry.url, to: file, start, end: start + len - 1, onProgress: (p) => report(done + (p.bytes || 0)) });
+        try {
+          const res = await active.done;
+          if (res && res.status === 200 && i === 0 && (await fs.size(file)) === entry.sizeBytes) {
+            // the server ignored the range and sent the whole map: that is the whole map
+            await fs.move(file, tmp);
+            await clearPartial();
+            report(entry.sizeBytes);
+            return undefined;
+          }
+          if (res && res.status === 200 && (await fs.size(file)) !== len) {
+            // a server that cannot do partial downloads: fetch the whole map in one go instead
+            await fs.remove(file).catch(() => {});
+            return single();
+          }
+          if ((await fs.size(file)) !== len) throw new Error("the server did not honour a partial download");
+          lastErr = null;
+          break;
+        } catch (err) {
+          lastErr = err;
+          await fs.remove(file).catch(() => {});
+          if (err && err.cancelled) fail(err);
+          if (err && err.fatal) break;
+        }
+      }
+      if (lastErr) fail(lastErr);
+      done += len;
+      report(done);
+    }
+
+    // put the pieces together, removing each once it is in, so the phone never holds the map twice
+    await fs.remove(tmp).catch(() => {});
+    for (let i = 0; i < n; i++) {
+      const file = path(chunkName(part, i));
+      await fs.appendFrom(tmp, file);
+      await fs.remove(file).catch(() => {});
+    }
+    await fs.remove(path(PARTIAL)).catch(() => {});
+    return undefined;
   }
 
   const store = {
@@ -121,7 +243,6 @@ export function createPackStore(getFs) {
       const tmp = path(`${entry.id}-v${entry.version}.part`);
       const final = path(fileFor(entry.id, entry.version));
       const cleanup = () => fs.remove(tmp).catch(() => {});
-      let download = null;
       try {
         const free = await fs.freeBytes().catch(() => Infinity);
         if (free < entry.sizeBytes + SPACE_MARGIN) {
@@ -129,14 +250,7 @@ export function createPackStore(getFs) {
         }
 
         await cleanup();
-        download = fs.download({ url: entry.url, to: tmp, onProgress });
-        current = download;
-        try {
-          await download.done;
-        } catch (err) {
-          if (err && err.cancelled) throw new PackError("cancelled", "Download cancelled.");
-          throw new PackError("download", err && err.message ? `Download failed: ${err.message}` : "Download failed. Check the internet connection.");
-        }
+        await fetchInto(entry, tmp, onProgress);
 
         if ((await fs.size(tmp)) !== entry.sizeBytes) {
           throw new PackError("size", "The downloaded map is not the size it should be, so it was not used.");
