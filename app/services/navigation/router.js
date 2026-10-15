@@ -52,6 +52,37 @@ function distanceToLineM(p, geometry) {
   return best;
 }
 
+const EDGE_CELL_DEG = 0.002; // about 220 m
+const edgeGrids = new WeakMap();
+
+// Which roads touch each cell of a coarse grid, built once per pack. A closure then only looks at the
+// roads in the few cells it covers, instead of every road in the pack.
+function edgeGrid(graph) {
+  let grid = edgeGrids.get(graph);
+  if (grid) return grid;
+  const cells = new Map();
+  const cell = (v) => Math.floor(v / EDGE_CELL_DEG);
+  for (let e = 0; e < graph.edgeCount; e++) {
+    const a = graph.ea[e];
+    const b = graph.eb[e];
+    const r0 = cell(Math.min(graph.lat[a], graph.lat[b]));
+    const r1 = cell(Math.max(graph.lat[a], graph.lat[b]));
+    const c0 = cell(Math.min(graph.lon[a], graph.lon[b]));
+    const c1 = cell(Math.max(graph.lon[a], graph.lon[b]));
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+        const key = `${r},${c}`;
+        const list = cells.get(key);
+        if (list) list.push(e);
+        else cells.set(key, [e]);
+      }
+    }
+  }
+  grid = { cells, cell };
+  edgeGrids.set(graph, grid);
+  return grid;
+}
+
 /**
  * Which roads pass within each closure's radius. Returns the combined set (for the search)
  * and, per closure, its own edges (to tell which closures a route would have run into).
@@ -59,20 +90,31 @@ function distanceToLineM(p, geometry) {
 function blockedEdges(graph, closures) {
   const blocked = new Uint8Array(graph.edgeCount);
   const perClosure = closures.map(() => []);
+  const { cells, cell } = edgeGrid(graph);
   closures.forEach((c, ci) => {
     const dLat = c.radiusM / M_PER_DEG_LAT;
     const dLon = c.radiusM / (M_PER_DEG_LAT * Math.max(0.2, Math.cos(rad(c.latitude))));
-    for (let e = 0; e < graph.edgeCount; e++) {
-      const a = graph.ea[e];
-      const b = graph.eb[e];
-      const la = graph.lat[a], lo = graph.lon[a], lb = graph.lat[b], lob = graph.lon[b];
-      if (Math.max(la, lb) < c.latitude - dLat || Math.min(la, lb) > c.latitude + dLat) continue;
-      if (Math.max(lo, lob) < c.longitude - dLon || Math.min(lo, lob) > c.longitude + dLon) continue;
-      if (pointToSegmentM(c, [la, lo], [lb, lob]) <= c.radiusM) {
-        blocked[e] = 1;
-        perClosure[ci].push(e);
+    const seen = new Set(); // a long road sits in several cells but is tested once
+    for (let r = cell(c.latitude - dLat); r <= cell(c.latitude + dLat); r++) {
+      for (let col = cell(c.longitude - dLon); col <= cell(c.longitude + dLon); col++) {
+        const list = cells.get(`${r},${col}`);
+        if (!list) continue;
+        for (const e of list) {
+          if (seen.has(e)) continue;
+          seen.add(e);
+          const a = graph.ea[e];
+          const b = graph.eb[e];
+          const la = graph.lat[a], lo = graph.lon[a], lb = graph.lat[b], lob = graph.lon[b];
+          if (Math.max(la, lb) < c.latitude - dLat || Math.min(la, lb) > c.latitude + dLat) continue;
+          if (Math.max(lo, lob) < c.longitude - dLon || Math.min(lo, lob) > c.longitude + dLon) continue;
+          if (pointToSegmentM(c, [la, lo], [lb, lob]) <= c.radiusM) {
+            blocked[e] = 1;
+            perClosure[ci].push(e);
+          }
+        }
       }
     }
+    perClosure[ci].sort((x, y) => x - y); // same order as scanning every road
   });
   return { blocked, perClosure };
 }
@@ -446,3 +488,6 @@ export function createRouter(rawPack) {
 }
 
 export { WALK, DRIVE };
+
+// exposed for tests only
+export const __internals = { blockedEdges, pointToSegmentM };

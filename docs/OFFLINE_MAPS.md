@@ -103,6 +103,8 @@ and the app has the matching public key built in (`app/constants/maps.js`).
   cancelled or interrupted download leaves the maps already on the phone untouched, and an update
   keeps the old version until the new one is verified.
 - Downloads are one at a time, ask first above 10 MB, and refuse if the phone is short on space.
+- Opening the Offline maps screen checks for new maps and updates. That is the only time the app
+  contacts the map server on its own: it makes no network requests at startup.
 
 What this does not do: it cannot prove a map is *accurate*, only that it is the one the publisher
 signed. Whoever holds the signing key decides what every phone can download, so guard it.

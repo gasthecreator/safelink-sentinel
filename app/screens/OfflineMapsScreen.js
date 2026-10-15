@@ -35,19 +35,22 @@ export default function OfflineMapsScreen() {
   useEffect(() => {
     mounted.current = true;
     refresh().catch((e) => setError(e.message));
+    // look for maps and updates when the screen opens (the only time the app contacts the map server on its own)
+    if (MAP_CATALOG_PUBLIC_KEY) check(true);
     return () => {
       mounted.current = false;
     };
   }, [refresh]);
 
-  const check = async () => {
+  const check = async (quiet = false) => {
     setChecking(true);
     setError(null);
     try {
       const catalog = await fetchCatalog(PackStore);
       setOffers(describeCatalog(catalog, await PackStore.installed()));
     } catch (err) {
-      setError(err.message);
+      // opening the screen with no internet is normal, not an error worth shouting about
+      setError(quiet ? `Could not check for maps right now (${err.message}) Tap "Check for maps" to try again.` : err.message);
     } finally {
       if (mounted.current) setChecking(false);
     }
@@ -131,7 +134,7 @@ export default function OfflineMapsScreen() {
           <Text style={styles.empty}>Map downloads are not set up in this version of the app yet.</Text>
         ) : (
           <>
-            <TouchableOpacity style={[styles.button, (checking || busy) && styles.disabled]} disabled={checking || busy} onPress={check}>
+            <TouchableOpacity style={[styles.button, (checking || busy) && styles.disabled]} disabled={checking || busy} onPress={() => check(false)}>
               {checking ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{offers ? "Check again" : "Check for maps"}</Text>}
             </TouchableOpacity>
             {offers && offers.length === 0 ? <Text style={styles.empty}>No maps are listed right now.</Text> : null}
