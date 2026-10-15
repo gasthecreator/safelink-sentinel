@@ -6,14 +6,19 @@
 //   node scripts/build-routing-pack.js --from saved-overpass.json --name X --out pack.json
 //
 // bbox is south,west,north,east in decimal degrees. Needs internet, once, on the
-// machine that builds the pack (not on the phone). Be gentle with the public Overpass
-// servers: ask for small areas, one at a time. Large regions should use a Geofabrik
-// extract instead; this script only handles an Overpass JSON file or a small bbox.
+// machine that builds the pack (not on the phone). An area bigger than one small request is fetched
+// in tiles, one at a time with a pause between them (the public Overpass servers are shared), and
+// joined into a single pack. Finished tiles are kept in --cache (default: next to --out), so a run
+// that fails part-way resumes where it stopped. Limit: 1 square degree (about 10,000 km2) per pack.
 
 const fs = require("fs");
 const path = require("path");
 const https = require("https");
 const { osmToPack } = require("./lib/osmToPack");
+const { splitBbox, mergeOverpass, MAX_TILE_AREA, MAX_TOTAL_AREA } = require("./lib/tiles");
+
+const PAUSE_MS = 4000;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -43,7 +48,24 @@ function post(url, body) {
   });
 }
 
-async function fetchOverpass([s, w, n, e]) {
+// The public servers are often briefly overloaded (502/504): try each, then wait and go round again.
+async function fetchOverpass(box) {
+  let lastError;
+  for (let round = 0; round < 3; round++) {
+    if (round > 0) {
+      console.error(`  waiting ${round * 15}s before trying again...`);
+      await sleep(round * 15000);
+    }
+    try {
+      return await fetchOverpassOnce(box);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
+
+async function fetchOverpassOnce([s, w, n, e]) {
   const query = `[out:json][timeout:90];way["highway"](${s},${w},${n},${e});(._;>;);out body;`;
   const body = `data=${encodeURIComponent(query)}`;
   let lastError;
@@ -80,12 +102,34 @@ async function fetchOverpass([s, w, n, e]) {
     osm = JSON.parse(fs.readFileSync(arg("from"), "utf8")); // bbox, if also given, is the covered area
   } else {
     const area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1]);
-    if (area > 0.25) {
-      console.error("That area is too large for the public Overpass servers. Use a Geofabrik extract for big regions.");
+    if (area > MAX_TOTAL_AREA) {
+      console.error(`That area is ${area.toFixed(2)} square degrees; the limit is ${MAX_TOTAL_AREA} (about 10,000 km2, roughly 25 MB). Make several packs instead.`);
       process.exit(2);
     }
-    console.log(`Fetching roads for ${name} ${bbox.join(",")} ...`);
-    osm = await fetchOverpass(bbox);
+    const tiles = splitBbox(bbox, MAX_TILE_AREA);
+    const cache = arg("cache") || `${out}.tiles`;
+    fs.mkdirSync(cache, { recursive: true });
+    console.log(`Fetching roads for ${name} ${bbox.join(",")} in ${tiles.length} tile${tiles.length === 1 ? "" : "s"} ...`);
+    const parts = [];
+    for (const [i, tile] of tiles.entries()) {
+      const file = path.join(cache, `tile-${tile.map((v) => v.toFixed(6)).join("_")}.json`);
+      if (fs.existsSync(file)) {
+        try {
+          parts.push(JSON.parse(fs.readFileSync(file, "utf8")));
+          console.log(`  tile ${i + 1}/${tiles.length}: already fetched`);
+          continue;
+        } catch {
+          // a half-written file: fetch it again
+        }
+      }
+      if (i > 0 && parts.length > 0) await sleep(PAUSE_MS);
+      console.log(`  tile ${i + 1}/${tiles.length}: ${tile.map((v) => v.toFixed(4)).join(",")}`);
+      const part = await fetchOverpass(tile);
+      fs.writeFileSync(file, JSON.stringify(part));
+      parts.push(part);
+    }
+    osm = mergeOverpass(parts);
+    if (!arg("keep-cache")) fs.rmSync(cache, { recursive: true, force: true });
   }
   const pack = osmToPack(osm, { name, bbox });
   fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
