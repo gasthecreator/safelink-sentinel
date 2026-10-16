@@ -7,7 +7,7 @@ import com.facebook.react.uimanager.ViewManager
 
 class SafeLinkPeripheralPackage : ReactPackage {
   override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
-      listOf(SafeLinkPeripheralModule(reactContext))
+      listOf(SafeLinkPeripheralModule(reactContext), SafeLinkGuidanceModule(reactContext))
 
   override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> =
       emptyList()

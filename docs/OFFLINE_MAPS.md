@@ -154,8 +154,11 @@ is set in `constants/maps.js`, downloads are switched off in the app (it fails c
   (two fixes more than about 40-120 m away, a few seconds apart; poor-accuracy fixes are ignored)
   works out a new route from where you are, at most once every 15 seconds. Reaching the end of the
   mapped road says so and gives their direction and distance, because they may be off the roads in the
-  map; "arrived" only appears within 25 m of them. It needs the app open with the screen on: the app
-  does not track you in the background or with the phone locked. Without live mode the route is worked
+  map; "arrived" only appears within 25 m of them. While live the screen is kept on (and let go of when
+  you stop or leave the screen), and instructions are spoken with the phone's own voice (no internet; the
+  "Voice" link turns it off and is remembered): "In 80 meters, turn left onto Main Street", then "Turn left
+  onto Main Street" when it is close, with earlier warnings when driving. The app does not track you in the
+  background or with the phone locked. Distances are spoken in meters and kilometres. Without live mode the route is worked
   out once; use **Try GPS again** to recalculate.
 
 ## Credit
