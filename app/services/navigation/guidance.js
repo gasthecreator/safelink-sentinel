@@ -18,6 +18,38 @@ export function keepAwake(on) {
   }
 }
 
+/**
+ * Keep following you with the screen locked or another app in front (Android: a foreground service with
+ * a notification; iOS: background location with the blue indicator). Call stopBackground when done.
+ */
+export function startBackground() {
+  try {
+    if (native && native.startBackground) native.startBackground();
+  } catch {
+    // directions still work with the app in front
+  }
+}
+
+export function stopBackground() {
+  try {
+    if (native && native.stopBackground) native.stopBackground();
+  } catch {
+    // nothing to stop
+  }
+}
+
+/** Android 13+: ask to show the "following your route" notification. It is fine if the answer is no. */
+export async function askNotificationPermission() {
+  try {
+    const { Platform, PermissionsAndroid } = require("react-native");
+    if (Platform.OS === "android" && Platform.Version >= 33) {
+      await PermissionsAndroid.request("android.permission.POST_NOTIFICATIONS");
+    }
+  } catch {
+    // the service runs either way; only its notification is affected
+  }
+}
+
 export function speak(text) {
   try {
     if (native && typeof text === "string" && text) native.speak(text);

@@ -13,6 +13,7 @@ import { getPositionForAlert, watchPositionUpdates } from "../services/location/
 import { startFollowing, update as followUpdate, canReroute, markRerouted } from "../services/navigation/follow";
 import {
   keepAwake, speak, stopSpeaking, isSpeechAvailable, createAnnouncer, loadVoicePreference, saveVoicePreference,
+  startBackground, stopBackground, askNotificationPermission,
 } from "../services/navigation/guidance";
 import { listPlaces } from "../services/location/PlaceStore";
 import { parseCoordinates } from "../services/location/places";
@@ -227,8 +228,14 @@ export default function NavigationScreen() {
   useEffect(() => {
     if (!live) return undefined;
     keepAwake(true);
+    // let directions carry on with the screen locked (the screen stays on while this screen is open
+    // anyway; this is for when you lock the phone or switch apps)
+    let active = true; // do not start the service if Stop was pressed while the permission question was up
+    askNotificationPermission().then(() => active && startBackground());
     return () => {
+      active = false;
       keepAwake(false);
+      stopBackground();
       stopSpeaking();
     };
   }, [live]);
@@ -453,7 +460,7 @@ const LivePanel = ({ progress, note, onStop, voice }) => (
       <Text style={styles.liveText}>Waiting for your position...</Text>
     )}
     {note ? <Text style={styles.liveNote}>{note}</Text> : null}
-    <Text style={styles.liveSmall}>The screen stays on while directions are live.</Text>
+    <Text style={styles.liveSmall}>The screen stays on while directions are live, and they keep going if you lock the phone.</Text>
     {voice ? (
       <TouchableOpacity onPress={voice.toggle}>
         <Text style={styles.link}>{voice.on ? "Voice on: tap to turn off" : "Voice off: tap to turn on"}</Text>

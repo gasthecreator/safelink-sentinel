@@ -14,6 +14,11 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- a short buzz when a turn is near, when you leave the route, and on arrival -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- live directions keep following you with the screen locked: a foreground service of type location,
+         which shows a notification while it runs. POST_NOTIFICATIONS (Android 13+) lets that notification show. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- Wi-Fi Direct (react-native-wifi-p2p declares none of these itself).
@@ -50,5 +55,9 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+      <service
+          android:name=".GuidanceService"
+          android:exported="false"
+          android:foregroundServiceType="location" />
     </application>
 </manifest>

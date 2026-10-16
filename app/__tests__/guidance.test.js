@@ -75,22 +75,23 @@ describe("start, off route, arrival", () => {
 describe("the native module is optional", () => {
   test("without it nothing throws and speech is reported unavailable", async () => {
     const g = require("../services/navigation/guidance.js");
-    expect(() => { g.keepAwake(true); g.speak("hi"); g.stopSpeaking(); }).not.toThrow();
+    expect(() => { g.keepAwake(true); g.speak("hi"); g.stopSpeaking(); g.startBackground(); g.stopBackground(); }).not.toThrow();
+    await expect(g.askNotificationPermission()).resolves.toBeUndefined();
     expect(await g.isSpeechAvailable()).toBe(false);
   });
   test("with it, calls reach the phone (and a throwing phone does not break directions)", async () => {
     jest.resetModules();
     const calls = [];
     jest.doMock("react-native", () => ({
-      NativeModules: { SafeLinkGuidance: { keepAwake: (v) => calls.push(["keepAwake", v]), speak: (t) => calls.push(["speak", t]), stopSpeaking: () => calls.push(["stop"]), isSpeechAvailable: async () => true } },
+      NativeModules: { SafeLinkGuidance: { keepAwake: (v) => calls.push(["keepAwake", v]), speak: (t) => calls.push(["speak", t]), stopSpeaking: () => calls.push(["stop"]), startBackground: () => calls.push(["bg", "start"]), stopBackground: () => calls.push(["bg", "stop"]), isSpeechAvailable: async () => true } },
     }));
     const g = require("../services/navigation/guidance.js");
-    g.keepAwake(true); g.speak("Turn left."); g.speak(""); g.stopSpeaking();
-    expect(calls).toEqual([["keepAwake", true], ["speak", "Turn left."], ["stop"]]);
+    g.keepAwake(true); g.speak("Turn left."); g.speak(""); g.stopSpeaking(); g.startBackground(); g.stopBackground();
+    expect(calls).toEqual([["keepAwake", true], ["speak", "Turn left."], ["stop"], ["bg", "start"], ["bg", "stop"]]);
     expect(await g.isSpeechAvailable()).toBe(true);
     jest.resetModules();
     jest.doMock("react-native", () => ({ NativeModules: { SafeLinkGuidance: { speak() { throw new Error("boom"); }, keepAwake() { throw new Error("boom"); } } } }));
     const bad = require("../services/navigation/guidance.js");
-    expect(() => { bad.speak("x"); bad.keepAwake(true); }).not.toThrow();
+    expect(() => { bad.speak("x"); bad.keepAwake(true); bad.startBackground(); bad.stopBackground(); }).not.toThrow(); // also an older module without the background methods
   });
 });

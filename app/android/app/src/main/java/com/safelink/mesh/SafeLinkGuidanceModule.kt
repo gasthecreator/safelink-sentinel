@@ -1,6 +1,8 @@
 package com.safelink.mesh
 
+import android.content.Intent
 import android.speech.tts.TextToSpeech
+import androidx.core.content.ContextCompat
 import android.view.WindowManager
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -17,6 +19,7 @@ import java.util.Locale
  *   speak(text: string)            replaces anything still being spoken
  *   stopSpeaking()
  *   isSpeechAvailable(): Promise<boolean>
+ *   startBackground() / stopBackground()   keep running with the screen locked (a foreground service)
  */
 class SafeLinkGuidanceModule(private val reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext), TextToSpeech.OnInitListener {
@@ -35,6 +38,26 @@ class SafeLinkGuidanceModule(private val reactContext: ReactApplicationContext) 
     activity.runOnUiThread {
       if (on) activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
       else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+  }
+
+  @ReactMethod
+  fun startBackground() {
+    try {
+      ContextCompat.startForegroundService(
+          reactContext.applicationContext, Intent(reactContext.applicationContext, GuidanceService::class.java))
+    } catch (e: Exception) {
+      // not allowed right now (for example the app is not in front): directions still work in the foreground
+    }
+  }
+
+  @ReactMethod
+  fun stopBackground() {
+    try {
+      reactContext.applicationContext.stopService(
+          Intent(reactContext.applicationContext, GuidanceService::class.java))
+    } catch (e: Exception) {
+      // already stopped
     }
   }
 
@@ -105,6 +128,7 @@ class SafeLinkGuidanceModule(private val reactContext: ReactApplicationContext) 
 
   override fun invalidate() {
     super.invalidate()
+    stopBackground()
     tts?.stop()
     tts?.shutdown()
     tts = null
