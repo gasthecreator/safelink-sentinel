@@ -110,6 +110,8 @@ and the app has the matching public key built in (`app/constants/maps.js`).
   cancelled or interrupted download leaves the maps already on the phone untouched, and an update
   keeps the old version until the new one is verified.
 - Downloads are one at a time, ask first above 10 MB, and refuse if the phone is short on space.
+- **Show maps near me** (only when you tap it, so the app never reads your location on its own here) puts
+  the map covering your position first, then the nearest ones with their distance.
 - Opening the Offline maps screen checks for new maps and updates. That is the only time the app
   contacts the map server on its own: it makes no network requests at startup.
 

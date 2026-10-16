@@ -74,3 +74,29 @@ export function describeCatalog(catalog, installed) {
     return { entry, status, installedVersion: have ? have.version : null };
   });
 }
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** Metres from a position to a map's area: 0 if inside it, otherwise to its nearest edge. */
+export function distanceToBboxM(position, bbox) {
+  const [south, west, north, east] = bbox;
+  const lat = clamp(position.latitude, south, north);
+  const lon = clamp(position.longitude, west, east);
+  const dLat = (position.latitude - lat) * 111320;
+  const dLon = (position.longitude - lon) * 111320 * Math.cos((position.latitude * Math.PI) / 180);
+  return Math.hypot(dLat, dLon);
+}
+
+/**
+ * Put the maps that matter to where you are first: the ones covering your position, then the nearest.
+ * Each offer gains `coversYou` and `distanceM` (0 when covered). Without a position the order is kept.
+ */
+export function rankByPosition(offers, position) {
+  if (!position || !Number.isFinite(position.latitude) || !Number.isFinite(position.longitude)) return offers;
+  return offers
+    .map((o) => {
+      const distanceM = distanceToBboxM(position, o.entry.bbox);
+      return { ...o, distanceM, coversYou: distanceM === 0 };
+    })
+    .sort((a, b) => a.distanceM - b.distanceM);
+}
