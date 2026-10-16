@@ -49,7 +49,16 @@ const packs = files.map((file) => {
   return { id, buffer, pack };
 });
 
-const body = buildBody({ previous, packs, baseUrl });
+// --retire PUBLICKEY (repeatable): tell phones to stop trusting that key. Phones only believe this if the
+// catalog is signed with the BACKUP key, so use --key with the backup private key. --min-sequence N
+// makes the catalog outrank anything published with the stolen key (for example 1000 above the last).
+const retire = process.argv.flatMap((a, i, all) => (a === "--retire" ? [all[i + 1]] : []));
+const minSequence = Number(arg("min-sequence") || 0);
+if (retire.length && !minSequence) {
+  console.error("When retiring a key, also give --min-sequence N (a number well above any catalog the thief may have published).");
+  process.exit(2);
+}
+const body = buildBody({ previous, packs, baseUrl, retire, minSequence });
 for (const entry of body.packs) {
   const source = packs.find((p) => p.id === entry.id);
   fs.writeFileSync(path.join(out, `${entry.id}-v${entry.version}.json`), source.buffer);

@@ -14,6 +14,11 @@ export const MAP_CATALOG_URL =
 // Leave empty to turn downloads off.
 export const MAP_CATALOG_PUBLIC_KEY = "4XcMeHG3Rj4p+ZyvtzUvL/aYKGw5z/fuLJL2a6egUE4=";
 
+// A second publisher key, kept OFFLINE (never on the machine you publish from). It can sign catalogs
+// too, and it alone can retire the everyday key if that leaks (see docs/OFFLINE_MAPS.md). Generate with:
+// node scripts/pack-keys.js --role backup. Leave empty until you have one.
+export const MAP_CATALOG_BACKUP_PUBLIC_KEY = "";
+
 // Only https:// downloads are allowed. This exists so tests and local development can use http.
 export const ALLOW_INSECURE_PACK_URLS = false;
 

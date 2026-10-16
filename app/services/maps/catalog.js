@@ -74,23 +74,41 @@ function cleanEntry(e, allowInsecure) {
   };
 }
 
+function parseKey(b64) {
+  try {
+    const key = base64ToBytes(b64);
+    return key.length === nacl.sign.publicKeyLength ? key : null;
+  } catch {
+    return null;
+  }
+}
+
+const MAX_RETIRE = 8;
+
 /**
  * Verify and read a catalog.
+ *
+ * Two publisher keys are trusted: the everyday one, and a backup kept offline. Either can sign a
+ * catalog. Only the backup can RETIRE a key (stop phones trusting it), which is how a leaked everyday
+ * key is dealt with without shipping a new app. The backup itself cannot be retired this way.
+ *
  * @param {object} wire  the parsed catalog file { format, body, signature }
- * @param {{publicKey: string, lastSequence?: number, allowInsecure?: boolean, now?: number}} options
- * @returns {{sequence:number, generatedAt:string, packs:object[]}} a verified catalog
+ * @param {{publicKey: string, backupPublicKey?: string, retiredKeys?: string[], lastSequence?: number,
+ *          allowInsecure?: boolean, now?: number}} options
+ * @returns {{sequence:number, generatedAt:string, packs:object[], signedBy:"primary"|"backup", retire:string[]}}
  * @throws {CatalogError} with a code: no_key | malformed | bad_signature | stale | invalid
  */
-export function verifyCatalog(wire, { publicKey, lastSequence = 0, allowInsecure = false, now = Date.now() } = {}) {
+export function verifyCatalog(wire, { publicKey, backupPublicKey = "", retiredKeys = [], lastSequence = 0, allowInsecure = false, now = Date.now() } = {}) {
   if (!publicKey) fail("no_key", "Map downloads are not set up in this build (no publisher key).");
 
-  let key;
-  try {
-    key = base64ToBytes(publicKey);
-  } catch {
-    key = null;
-  }
-  if (!key || key.length !== nacl.sign.publicKeyLength) fail("no_key", "The publisher key in this build is not valid.");
+  const retired = new Set(retiredKeys);
+  const primary = parseKey(publicKey);
+  if (!primary) fail("no_key", "The publisher key in this build is not valid.");
+  const backup = backupPublicKey ? parseKey(backupPublicKey) : null;
+  const candidates = [];
+  if (!retired.has(publicKey)) candidates.push({ role: "primary", key: primary });
+  if (backup && !retired.has(backupPublicKey)) candidates.push({ role: "backup", key: backup });
+  if (candidates.length === 0) fail("no_key", "None of this build's publisher keys can be trusted any more. Update the app.");
 
   if (!wire || typeof wire !== "object" || wire.format !== 1 || typeof wire.body !== "string" || typeof wire.signature !== "string") {
     fail("malformed", "The map list is not in a format this app understands.");
@@ -105,9 +123,9 @@ export function verifyCatalog(wire, { publicKey, lastSequence = 0, allowInsecure
   }
   if (!signature || signature.length !== nacl.sign.signatureLength) fail("bad_signature", "The map list's signature is not valid, so it was not used.");
   // Verify BEFORE reading anything inside the body.
-  if (!nacl.sign.detached.verify(utf8Encode(wire.body), signature, key)) {
-    fail("bad_signature", "The map list's signature is not valid, so it was not used.");
-  }
+  const bodyBytes = utf8Encode(wire.body);
+  const signer = candidates.find((c) => nacl.sign.detached.verify(bodyBytes, signature, c.key));
+  if (!signer) fail("bad_signature", "The map list's signature is not valid, so it was not used.");
 
   let body;
   try {
@@ -137,5 +155,13 @@ export function verifyCatalog(wire, { publicKey, lastSequence = 0, allowInsecure
     seen.add(entry.id);
     packs.push(entry);
   }
-  return { sequence: body.sequence, generatedAt: body.generatedAt, packs };
+  // Retiring keys is the backup key's power alone: a stolen everyday key must not be able to
+  // lock the real publisher out.
+  const retire = [];
+  if (signer.role === "backup" && Array.isArray(body.retire)) {
+    for (const k of body.retire.slice(0, MAX_RETIRE)) {
+      if (typeof k === "string" && k !== backupPublicKey && parseKey(k) && !retire.includes(k)) retire.push(k);
+    }
+  }
+  return { sequence: body.sequence, generatedAt: body.generatedAt, packs, signedBy: signer.role, retire };
 }
