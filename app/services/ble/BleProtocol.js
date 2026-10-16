@@ -26,6 +26,10 @@ export const DEFAULT_MTU = 23; // BLE minimum until a larger MTU is negotiated
 export const MAX_FRAMES = 1024;
 export const MAX_MESSAGE_BYTES = 128 * 1024;
 export const REASSEMBLY_TIMEOUT_MS = 30000;
+// Unfinished transfers held at once. Anyone in range can start transfers they never finish, so
+// the number is capped (the oldest are dropped first) instead of growing with whatever arrives.
+export const MAX_OPEN_TRANSFERS = 64;
+export const MAX_OPEN_PER_SOURCE = 4;
 
 export function maxFramePayload(mtu = DEFAULT_MTU) {
   const size = mtu - ATT_OVERHEAD - FRAME_HEADER_SIZE;
@@ -87,8 +91,10 @@ export class Reassembler {
     const key = `${sourceId}:${transferId}`;
     let transfer = this.transfers.get(key);
     if (!transfer || transfer.total !== total) {
-      transfer = { total, parts: new Map(), bytes: 0, startedAt: this.now() };
+      transfer = { total, parts: new Map(), bytes: 0, startedAt: this.now(), source: sourceId };
+      this.transfers.delete(key); // a restarted transfer goes to the back of the queue
       this.transfers.set(key, transfer);
+      this.limitOpenTransfers(sourceId);
     }
     if (transfer.parts.has(index)) return null; // duplicate frame
 
@@ -110,6 +116,20 @@ export class Reassembler {
     }
     this.transfers.delete(key);
     return out;
+  }
+
+  // Map order is oldest first, so the oldest unfinished transfers are the ones dropped.
+  limitOpenTransfers(sourceId) {
+    let fromSource = 0;
+    for (const t of this.transfers.values()) if (t.source === sourceId) fromSource++;
+    for (const [key, t] of this.transfers) {
+      if (fromSource <= MAX_OPEN_PER_SOURCE) break;
+      if (t.source === sourceId) {
+        this.transfers.delete(key);
+        fromSource--;
+      }
+    }
+    while (this.transfers.size > MAX_OPEN_TRANSFERS) this.transfers.delete(this.transfers.keys().next().value);
   }
 
   prune() {

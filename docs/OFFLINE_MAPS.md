@@ -138,6 +138,32 @@ Run it again with the same `--out` to publish an update: the catalog's sequence 
 changed maps get a new version. **Back up the private key and never commit it.** Until a public key
 is set in `constants/maps.js`, downloads are switched off in the app (it fails closed).
 
+### A backup key, and what to do if the signing key leaks
+
+The map list is only as safe as the signing key. So the app trusts **two** keys:
+
+- the **everyday key** (`~/.safelink/pack-signing.key`), used by `publish-pack-catalog.js`, and
+- a **backup key**, made with `node scripts/pack-keys.js --role backup`, which you keep **offline**
+  (a USB stick in a drawer, not the computer you publish from). Put its public key in
+  `MAP_CATALOG_BACKUP_PUBLIC_KEY` in `app/constants/maps.js` before you ship the app.
+
+Either key can sign a map list. Only the backup key can **retire** a key: a list signed with it may name keys
+that phones must stop trusting, and phones remember that for good. If the everyday key leaks:
+
+```bash
+node scripts/publish-pack-catalog.js --key ~/path/to/backup.key --retire EVERYDAY_PUBLIC_KEY \
+  --min-sequence 1000000 --base-url https://github.com/OWNER/REPO/releases/download/map-packs \
+  --out dist/maps assets/maps/your-town.json
+```
+
+Upload the result as normal. Every phone that fetches it stops accepting lists signed with the leaked key,
+even ones with a higher sequence number. (`--min-sequence` makes the list outrank anything the thief
+published; pick a number far above the last one.) Then make a new everyday key and ship an app update with it.
+Phones that never reconnect to the internet keep trusting the old key until they do.
+
+Limits: if the **backup** key leaks too, there is no way to retire it from afar; ship a new app with new keys.
+A phone only learns of a retirement when it next checks for maps.
+
 ## Things worth knowing
 
 - **Coverage:** a pack fully covers the box you asked for. Roads crossing the edge are included
@@ -154,8 +180,11 @@ is set in `constants/maps.js`, downloads are switched off in the app (it fails c
   (two fixes more than about 40-120 m away, a few seconds apart; poor-accuracy fixes are ignored)
   works out a new route from where you are, at most once every 15 seconds. Reaching the end of the
   mapped road says so and gives their direction and distance, because they may be off the roads in the
-  map; "arrived" only appears within 25 m of them. It needs the app open with the screen on: the app
-  does not track you in the background or with the phone locked. Without live mode the route is worked
+  map; "arrived" only appears within 25 m of them. While live the screen is kept on (and let go of when
+  you stop or leave the screen), and instructions are spoken with the phone's own voice (no internet; the
+  "Voice" link turns it off and is remembered): "In 80 meters, turn left onto Main Street", then "Turn left
+  onto Main Street" when it is close, with earlier warnings when driving. The app does not track you in the
+  background or with the phone locked. Distances are spoken in meters and kilometres. Without live mode the route is worked
   out once; use **Try GPS again** to recalculate.
 
 ## Credit

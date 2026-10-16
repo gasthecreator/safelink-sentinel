@@ -376,3 +376,75 @@ describe("resumable downloads", () => {
     expect((await store.installed()).length).toBe(1);
   });
 });
+
+// ---- backup key and key retirement ----
+describe("backup publisher key", () => {
+  const { verifyCatalog } = require("../services/maps/catalog.js");
+  const primary = signer.generateKeypair();
+  const backup = signer.generateKeypair();
+  const thief = signer.generateKeypair();
+  const body = (n, extra = {}) => ({ sequence: n, generatedAt: new Date().toISOString(), packs: [entryFor()], ...extra });
+  const signed = (b, kp) => signer.signCatalog(b, kp.secretKey);
+  const opts = (over = {}) => ({ publicKey: primary.publicKey, backupPublicKey: backup.publicKey, ...over });
+
+  test("either key can sign a catalog, and the result says which", () => {
+    expect(verifyCatalog(signed(body(1), primary), opts()).signedBy).toBe("primary");
+    expect(verifyCatalog(signed(body(1), backup), opts()).signedBy).toBe("backup");
+  });
+  test("a key that is not one of the two is refused", () => {
+    expect(() => verifyCatalog(signed(body(1), thief), opts())).toThrow(/signature/);
+  });
+  test("with no backup configured only the primary works", () => {
+    expect(() => verifyCatalog(signed(body(1), backup), { publicKey: primary.publicKey })).toThrow(/signature/);
+  });
+  test("the backup can retire the primary; the primary cannot retire anything", () => {
+    const fromBackup = verifyCatalog(signed(body(5, { retire: [primary.publicKey] }), backup), opts());
+    expect(fromBackup.retire).toEqual([primary.publicKey]);
+    const fromPrimary = verifyCatalog(signed(body(5, { retire: [thief.publicKey, backup.publicKey] }), primary), opts());
+    expect(fromPrimary.retire).toEqual([]);
+  });
+  test("the backup cannot retire itself, and junk entries are ignored", () => {
+    const r = verifyCatalog(signed(body(5, { retire: [backup.publicKey, "nonsense", 42, primary.publicKey, primary.publicKey] }), backup), opts());
+    expect(r.retire).toEqual([primary.publicKey]);
+  });
+  test("once the primary is retired, catalogs signed with it are refused", () => {
+    const opt = opts({ retiredKeys: [primary.publicKey] });
+    expect(() => verifyCatalog(signed(body(9), primary), opt)).toThrow(/signature/);
+    expect(verifyCatalog(signed(body(9), backup), opt).signedBy).toBe("backup");
+  });
+  test("with every key retired nothing is trusted", () => {
+    expect(() => verifyCatalog(signed(body(1), backup), opts({ retiredKeys: [primary.publicKey, backup.publicKey] }))).toThrow(/Update the app/);
+  });
+
+  test("end to end: a leaked primary is locked out for good once the backup's catalog is seen", async () => {
+    const { fs, store } = setup();
+    const o = { fetchImpl: null, url: "https://x/catalog.json", publicKey: primary.publicKey, backupPublicKey: backup.publicKey };
+    const serve = (kp, n, extra) => ({ ...o, fetchImpl: async () => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(signed(body(n, extra), kp)) }) });
+    await fetchCatalog(store, serve(primary, 3)); // normal life
+    await fetchCatalog(store, serve(backup, 1003, { retire: [primary.publicKey] })); // the backup steps in, far ahead
+    expect(await store.retiredKeys()).toEqual([primary.publicKey]);
+    // the thief, holding the primary, publishes something even newer: refused
+    await expect(fetchCatalog(store, serve(primary, 5000))).rejects.toMatchObject({ code: "bad_signature" });
+    // and the decision survives an app restart
+    const again = createPackStore(() => fs);
+    expect(await again.retiredKeys()).toEqual([primary.publicKey]);
+    await expect(fetchCatalog(again, serve(primary, 9000))).rejects.toMatchObject({ code: "bad_signature" });
+  });
+
+  test("a stale thief catalog cannot out-run the retirement because retire sticks even though sequences moved", async () => {
+    const { store } = setup();
+    const base = { url: "https://x/catalog.json", publicKey: primary.publicKey, backupPublicKey: backup.publicKey };
+    const serve = (kp, n, extra) => ({ ...base, fetchImpl: async () => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(signed(body(n, extra), kp)) }) });
+    await fetchCatalog(store, serve(primary, 2000)); // thief got to 2000 first
+    await fetchCatalog(store, serve(backup, 2001, { retire: [primary.publicKey] }));
+    await expect(fetchCatalog(store, serve(primary, 9999))).rejects.toMatchObject({ code: "bad_signature" });
+  });
+
+  test("the publisher tools: --retire needs a sequence jump and puts the key in the signed body", () => {
+    const b = signer.buildBody({ previous: { sequence: 7, packs: [] }, packs: [], baseUrl: "https://x", retire: [primary.publicKey], minSequence: 1007 });
+    expect(b.sequence).toBe(1007);
+    expect(b.retire).toEqual([primary.publicKey]);
+    expect(signer.buildBody({ previous: { sequence: 7, packs: [] }, packs: [], baseUrl: "https://x" }).sequence).toBe(8);
+    expect(signer.buildBody({ previous: { sequence: 7, packs: [] }, packs: [], baseUrl: "https://x" }).retire).toBeUndefined();
+  });
+});

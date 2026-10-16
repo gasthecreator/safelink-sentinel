@@ -377,6 +377,8 @@ For directions that work with no internet (offline road maps), see [docs/OFFLINE
 
 To hand a build to other people (signing, versions, what to tell testers), see [docs/RELEASING.md](docs/RELEASING.md).
 
+For what is protected and what is not (spam, fake senders, replays), see [docs/SECURITY.md](docs/SECURITY.md).
+
 To test the mesh on real phones (BLE cannot be tested on simulators or in CI), see [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md).
 
 ## 📁 Project Structure

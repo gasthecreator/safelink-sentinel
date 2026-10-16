@@ -32,6 +32,23 @@ export function sanitizeText(value, max = MAX_NOTE) {
   return clean ? clean.slice(0, max) : null;
 }
 
+/**
+ * Like sanitizeText but keeps line breaks (at most 20 lines): for message bodies from other phones.
+ * Control characters and invisible direction-changing characters are removed, length capped.
+ */
+export function sanitizeMultiline(value, max = 2000) {
+  if (typeof value !== "string") return null;
+  const lines = value
+    .replace(/\r\n?/g, "\n")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u2028\u2029]+/g, " ")
+    .replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]+/g, "")
+    .split("\n")
+    .map((l) => l.replace(/[ \t]+/g, " ").trim());
+  const clean = lines.slice(0, 20).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return clean ? clean.slice(0, max) : null;
+}
+
 /** Accuracy worse than this means the phone only gave an approximate area. */
 export const APPROXIMATE_ABOVE_M = 500;
 
