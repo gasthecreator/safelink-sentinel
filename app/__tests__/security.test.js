@@ -66,30 +66,40 @@ describe("replays", () => {
 });
 
 describe("flooding", () => {
+  // The receive budget refills with real time, so these tests freeze the clock: otherwise how many
+  // messages get through would depend on how fast the machine builds the test envelopes.
+  const freezeClock = () => {
+    let now = Date.now();
+    jest.spyOn(Date, "now").mockImplementation(() => now);
+    return { advance: (ms) => { now += ms; } };
+  };
+
   test("a sustained flood is dropped after a burst; the phone does not verify them all", async () => {
     const carol = await boot(net, "carol");
     const spammer = await boot(net, "spammer");
     const verify = jest.spyOn(carol.Id, "verifyBytes");
-    for (let i = 0; i < 200; i++) {
-      await carol.relay.receive(bytesOf(await spammer.Env.createEnvelope({ id: `s${i}`, content: `spam ${i}`, ttl: 1 })));
-    }
-    // the burst of 30, plus the couple a second that trickle back in while the test runs
-    expect(carol.inbox.length).toBeGreaterThanOrEqual(30);
-    expect(carol.inbox.length).toBeLessThanOrEqual(60);
-    expect(verify.mock.calls.length).toBe(carol.inbox.length); // nothing beyond the budget was even checked
+    const envelopes = [];
+    for (let i = 0; i < 200; i++) envelopes.push(bytesOf(await spammer.Env.createEnvelope({ id: `s${i}`, content: `spam ${i}`, ttl: 1 })));
+    freezeClock();
+    for (const bytes of envelopes) await carol.relay.receive(bytes);
+    expect(carol.inbox).toHaveLength(30); // exactly the burst allowance
+    expect(verify.mock.calls.length).toBe(30); // nothing beyond the budget was even checked
   });
 
   test("the budget comes back with time, so real messages are accepted after a flood", async () => {
     const carol = await boot(net, "carol");
     const spammer = await boot(net, "spammer");
     const honest = await boot(net, "honest");
-    for (let i = 0; i < 60; i++) await carol.relay.receive(bytesOf(await spammer.Env.createEnvelope({ id: `s${i}`, content: "spam", ttl: 1 })));
+    const spam = [];
+    for (let i = 0; i < 60; i++) spam.push(bytesOf(await spammer.Env.createEnvelope({ id: `s${i}`, content: "spam", ttl: 1 })));
+    const real = bytesOf(await honest.Env.createEnvelope({ id: "real", content: "real", ttl: 4 }));
+    const clock = freezeClock();
+    for (const bytes of spam) await carol.relay.receive(bytes);
     const before = carol.inbox.length;
-    const real = await honest.Env.createEnvelope({ id: "real", content: "real", ttl: 4 });
-    await carol.relay.receive(bytesOf(real));
+    await carol.relay.receive(real);
     expect(carol.inbox.length).toBe(before); // still empty-handed right after the flood
-    carol.relay.tokensAt -= 10000; // ten seconds later
-    await carol.relay.receive(bytesOf(real));
+    clock.advance(10000); // ten seconds later
+    await carol.relay.receive(real);
     expect(carol.inbox.map((m) => m.content)).toContain("real");
   });
 

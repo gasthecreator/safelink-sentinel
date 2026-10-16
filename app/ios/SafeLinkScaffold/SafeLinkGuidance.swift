@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreLocation
 import Foundation
 import UIKit
 
@@ -10,9 +11,11 @@ import UIKit
 ///   speak(text: String)          replaces anything still being spoken
 ///   stopSpeaking()
 ///   isSpeechAvailable(): Promise<Bool>
+///   startBackground() / stopBackground()   keep running with the phone locked (iOS shows the blue location indicator)
 @objc(SafeLinkGuidance)
 class SafeLinkGuidance: NSObject, AVSpeechSynthesizerDelegate {
   private let synthesizer = AVSpeechSynthesizer()
+  private var background: CLLocationManager?
 
   override init() {
     super.init()
@@ -37,6 +40,31 @@ class SafeLinkGuidance: NSObject, AVSpeechSynthesizerDelegate {
       let utterance = AVSpeechUtterance(string: String(text.prefix(300)))
       utterance.voice = AVSpeechSynthesisVoice(language: AVSpeechSynthesisVoice.currentLanguageCode())
       self.synthesizer.speak(utterance)
+    }
+  }
+
+  /// An active location manager that is allowed to run in the background keeps the app alive while the
+  /// phone is locked, so the GPS watch in JavaScript keeps delivering positions. It is only on between
+  /// "Start live directions" and "Stop".
+  @objc func startBackground() {
+    DispatchQueue.main.async {
+      guard self.background == nil else { return }
+      let manager = CLLocationManager()
+      manager.desiredAccuracy = kCLLocationAccuracyBest
+      manager.distanceFilter = 5
+      manager.activityType = .fitness
+      manager.pausesLocationUpdatesAutomatically = false
+      manager.allowsBackgroundLocationUpdates = true
+      manager.showsBackgroundLocationIndicator = true
+      manager.startUpdatingLocation()
+      self.background = manager
+    }
+  }
+
+  @objc func stopBackground() {
+    DispatchQueue.main.async {
+      self.background?.stopUpdatingLocation()
+      self.background = nil
     }
   }
 

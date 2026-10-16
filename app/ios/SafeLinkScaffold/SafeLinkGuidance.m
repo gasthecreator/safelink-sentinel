@@ -9,6 +9,10 @@ RCT_EXTERN_METHOD(speak : (NSString *)text)
 
 RCT_EXTERN_METHOD(stopSpeaking)
 
+RCT_EXTERN_METHOD(startBackground)
+
+RCT_EXTERN_METHOD(stopBackground)
+
 RCT_EXTERN_METHOD(isSpeechAvailable : (RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject)
 
 @end
