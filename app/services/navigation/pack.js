@@ -3,6 +3,8 @@
 // typed arrays for fast routing. A pack may one day be downloaded, so it is validated
 // before use: a corrupt or hostile file is refused, never trusted.
 
+import { normalizeStreetName } from "./streetNames.js";
+
 export const WALK = "walk";
 export const DRIVE = "drive";
 const FLAG_WALK = 1;
@@ -101,7 +103,7 @@ export function loadPack(raw) {
         edgeCount: m,
         lat, lon, ea, eb, len, cls, flags, edgeName,
         pois,
-        names: names.map((s) => (typeof s === "string" ? s.slice(0, 120) : "")),
+        names: names.map((s) => (typeof s === "string" ? normalizeStreetName(s.slice(0, 120)) : "")),
         classes: classes.map((s) => (typeof s === "string" ? s.slice(0, 40) : "")),
         modes: {}, // built on first use, per travel mode
       },
