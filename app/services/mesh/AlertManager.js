@@ -7,7 +7,12 @@ import MessageRelay from "./MessageRelay.js";
 import RouterAI from "../ai/RouterAI.js";
 import ReliefRequestStore from "../storage/ReliefRequestStore.js";
 import { v4 as uuidv4 } from "uuid";
-import { sanitizePosition, sanitizeText } from "../location/position.js";
+import { sanitizePosition, sanitizeText, sanitizeMultiline } from "../location/position.js";
+
+const PRIORITIES = ["critical", "high", "normal", "low"];
+const MAX_INCOMING_TEXT = 2000;
+const MAX_INCOMING_TITLE = 120;
+const MAX_INCOMING_ALERTS = 50;
 
 class AlertManager {
   constructor() {
@@ -245,21 +250,25 @@ class AlertManager {
 
   // Turn a verified message received over the mesh into something the UI shows.
   async handleIncoming(msg) {
-    const firstLine = String(msg.content || "").split("\n")[0];
-    const priority = msg.meta?.priority || "normal";
+    // Everything here came from another phone. A valid signature shows who sent it, not that it
+    // is sensible: text is cleaned and capped, the priority must be a known one, positions are validated.
+    const content = sanitizeMultiline(String(msg.content ?? ""), MAX_INCOMING_TEXT) || "";
+    const firstLine = sanitizeText(String(msg.content ?? "").split("\n")[0], MAX_INCOMING_TITLE) || "";
+    const priority = PRIORITIES.includes(msg.meta?.priority) ? msg.meta.priority : "normal";
     // Never trust a position from the network: it is validated, or dropped.
     const position = sanitizePosition(msg.meta?.position);
     const where = sanitizeText(msg.meta?.where);
 
     if (msg.meta?.type === "relief") {
-      const id = msg.meta.reliefId || msg.id;
+      // namespaced by sender, so one phone cannot claim another's request id
+      const id = `remote:${msg.from}:${msg.meta.reliefId || msg.id}`;
       if (!(await ReliefRequestStore.getRequest(id))) {
-        await ReliefRequestStore.createRequest({
+        await ReliefRequestStore.addRemote({
           id,
           requesterId: msg.from,
           type: "relief",
           title: firstLine.replace(/^\[RELIEF\]\s*/, "") || "Relief request",
-          description: msg.content,
+          description: content,
           items: [],
           priority,
           status: "open",
@@ -276,15 +285,16 @@ class AlertManager {
     this.incomingAlerts.unshift({
       id: `in-${msg.id}`,
       title: firstLine || "Alert",
-      description: msg.content,
+      description: content,
       priority,
       senderId: msg.from,
-      timestamp: msg.receivedAt,
+      // when it was SENT, so a recorded alert replayed later does not look fresh
+      timestamp: msg.sentAt || msg.receivedAt,
       location: position,
       where,
       remote: true,
     });
-    this.incomingAlerts = this.incomingAlerts.slice(0, 50);
+    this.incomingAlerts = this.incomingAlerts.slice(0, MAX_INCOMING_ALERTS);
     console.log(`[SafeLink][AlertManager] 📥 Alert from ${msg.from.slice(0, 8)}: ${firstLine}`);
   }
 

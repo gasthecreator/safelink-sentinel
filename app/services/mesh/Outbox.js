@@ -19,6 +19,7 @@ import { getAllPeers } from "../storage/PeerCache.js";
 const STORAGE_KEY = "@safelink_outbox";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000; // messages are dropped a day after they were created
 const MAX_RECORDS = 200;
+const MAX_RELAYED_PER_SENDER = 10; // so one sender cannot fill the store and push everyone else's out
 const PEER_FRESH_MS = 3 * 60 * 1000; // only try peers seen this recently
 const BACKOFF_MS = 30 * 1000; // after a failed send, leave that peer alone for a while
 const FLUSH_INTERVAL_MS = 60 * 1000; // safety net in case a discovery event was missed
@@ -36,9 +37,13 @@ function priorityOf(envelope) {
   }
 }
 
+// Records are keyed by sender and id: an id alone is chosen by whoever sends, and a message
+// that reuses another's id must not displace or block it.
+const keyOf = (envelope) => `${envelope.from}:${envelope.id}`;
+
 class Outbox {
   constructor() {
-    this.records = new Map(); // envelope id -> { id, envelope, origin, deliveredTo, addedAt, ephemeral }
+    this.records = new Map(); // "sender:id" -> { id, envelope, origin, deliveredTo, addedAt, ephemeral }
     this.backoff = new Map(); // peer id -> time we may try it again
     this.loaded = null;
     this.flushing = null;
@@ -64,7 +69,10 @@ class Outbox {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       const saved = raw ? JSON.parse(raw) : [];
       for (const record of saved) {
-        if (record?.id && record.envelope?.id) this.records.set(record.id, record);
+        if (record?.envelope?.id && record.envelope.from) {
+          record.id = keyOf(record.envelope);
+          this.records.set(record.id, record);
+        }
       }
       this.prune();
       console.log(`[SafeLink][Outbox] Loaded ${this.records.size} waiting message(s)`);
@@ -109,8 +117,8 @@ class Outbox {
    */
   async publish(content, meta = {}, { ttl = DEFAULT_TTL, store = true } = {}) {
     await this.init();
-    const id = uuidv4();
-    const envelope = await createEnvelope({ id, content, meta, to: null, ttl });
+    const envelope = await createEnvelope({ id: uuidv4(), content, meta, to: null, ttl });
+    const id = keyOf(envelope);
     this.records.set(id, {
       id,
       envelope,
@@ -129,7 +137,7 @@ class Outbox {
     if (!store) this.records.delete(id);
 
     return {
-      id,
+      id: envelope.id,
       totalTargets: result.targets,
       success,
       failed: Math.max(0, result.targets - success),
@@ -145,9 +153,16 @@ class Outbox {
   async addRelay(envelope) {
     await this.init();
     if (envelope.hops + 1 >= envelope.ttl) return false;
-    if (this.records.has(envelope.id)) return true;
-    this.records.set(envelope.id, {
-      id: envelope.id,
+    const id = keyOf(envelope);
+    if (this.records.has(id)) return true;
+    // one sender's relayed messages are limited, oldest first, so a flood from one key cannot evict the rest
+    const theirs = [...this.records.values()].filter((r) => r.origin === "relay" && r.envelope.from === envelope.from);
+    if (theirs.length >= MAX_RELAYED_PER_SENDER) {
+      theirs.sort((a, b) => a.addedAt - b.addedAt);
+      for (const old of theirs.slice(0, theirs.length - MAX_RELAYED_PER_SENDER + 1)) this.records.delete(old.id);
+    }
+    this.records.set(id, {
+      id,
       envelope,
       origin: "relay",
       deliveredTo: [],

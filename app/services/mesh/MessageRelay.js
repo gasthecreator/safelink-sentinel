@@ -3,6 +3,7 @@
 // over BLE, receives and verifies envelopes from them, and relays what it
 // receives onward so messages can travel beyond one hop.
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAllPeers } from "../storage/PeerCache.js";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -26,6 +27,13 @@ const PEER_BACKOFF_MS = 30 * 1000; // after a failed send, leave that peer alone
 const MAX_MESSAGE_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 const SEEN_LIMIT = 1000;
+const SEEN_STORAGE_KEY = "@safelink_seen";
+const SEEN_SAVE_DELAY_MS = 2000;
+// Checking a signature is the expensive part of receiving. Anyone nearby can send as many validly
+// signed messages as they like (a new key costs nothing), so the number of messages looked at is
+// capped: a burst is fine, a sustained flood is dropped instead of draining the battery.
+const RECEIVE_BURST = 30;
+const RECEIVE_REFILL_PER_S = 2;
 
 class MessageRelay {
   constructor() {
@@ -33,15 +41,60 @@ class MessageRelay {
     this.maxRetries = 3;
     this.retryDelay = 800; // ms between retries
     this.peerBackoff = new Map(); // peer id -> time we may try it again
-    this.seen = new Map(); // envelope id -> true, insertion-ordered for eviction
+    this.seen = new Map(); // "sender:id" -> true, insertion-ordered for eviction
     this.receivedListeners = [];
+    this.seenLoaded = null;
+    this.seenTimer = null;
+    this.tokens = RECEIVE_BURST;
+    this.tokensAt = Date.now();
+    this.lastDropLog = 0;
   }
 
-  markSeen(id) {
-    this.seen.set(id, true);
+  // Messages are remembered by sender AND id. An id alone is chosen by whoever sends, so someone
+  // who saw a real message's id go by could send their own message with that id first and make
+  // this phone throw the real one away as a duplicate.
+  seenKey(from, id) {
+    return `${from}:${id}`;
+  }
+
+  markSeen(from, id) {
+    this.seen.set(this.seenKey(from, id), true);
     if (this.seen.size > SEEN_LIMIT) {
       this.seen.delete(this.seen.keys().next().value);
     }
+    clearTimeout(this.seenTimer);
+    this.seenTimer = setTimeout(() => this.saveSeen(), SEEN_SAVE_DELAY_MS);
+  }
+
+  // Remembered across restarts, so closing and reopening the app does not make a recorded
+  // (genuinely signed) alert look new again.
+  loadSeen() {
+    if (!this.seenLoaded) {
+      this.seenLoaded = AsyncStorage.getItem(SEEN_STORAGE_KEY)
+        .then((raw) => {
+          const list = raw ? JSON.parse(raw) : [];
+          if (Array.isArray(list)) for (const key of list.slice(-SEEN_LIMIT)) if (typeof key === "string") this.seen.set(key, true);
+        })
+        .catch(() => {});
+    }
+    return this.seenLoaded;
+  }
+
+  async saveSeen() {
+    try {
+      await AsyncStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify([...this.seen.keys()]));
+    } catch {
+      // not being able to save only costs us the restart protection
+    }
+  }
+
+  /** True if there is budget to look at another incoming message. */
+  takeReceiveToken(now = Date.now()) {
+    this.tokens = Math.min(RECEIVE_BURST, this.tokens + ((now - this.tokensAt) / 1000) * RECEIVE_REFILL_PER_S);
+    this.tokensAt = now;
+    if (this.tokens < 1) return false;
+    this.tokens -= 1;
+    return true;
   }
 
   // Create a new secure message. A receiverId makes it a direct, encrypted
@@ -62,7 +115,7 @@ class MessageRelay {
         to: receiverId || null,
         recipientBoxKey,
       });
-      this.markSeen(id); // don't process our own message if it echoes back
+      this.markSeen(envelope.from, id); // don't process our own message if it echoes back
 
       const message = {
         id,
@@ -191,19 +244,32 @@ class MessageRelay {
    * de-duplicate, deliver to listeners if it's for us, and relay it onward.
    */
   async receive(bytes) {
-    const env = decodeEnvelope(bytes);
-    if (!verifyEnvelope(env)) {
-      console.log("[SafeLink] 🚫 Dropped message that failed verification");
+    if (!this.takeReceiveToken()) {
+      if (Date.now() - this.lastDropLog > 10000) {
+        this.lastDropLog = Date.now();
+        console.log("[SafeLink] 🚫 Receiving too many messages too fast: dropping some");
+      }
       return null;
     }
-    if (this.seen.has(env.id)) return null;
+    const env = decodeEnvelope(bytes);
+    // Cheap checks first; the signature is only checked for messages that could be accepted.
+    if (!env || typeof env.id !== "string" || typeof env.from !== "string" || typeof env.ts !== "string") {
+      console.log("[SafeLink] 🚫 Dropped a malformed message");
+      return null;
+    }
+    await this.loadSeen();
+    if (this.seen.has(this.seenKey(env.from, env.id))) return null;
 
     const age = Date.now() - Date.parse(env.ts);
     if (!(age > -MAX_CLOCK_SKEW_MS && age < MAX_MESSAGE_AGE_MS)) {
       console.log(`[SafeLink] 🚫 Dropped message ${env.id.slice(0, 8)} with implausible timestamp`);
       return null;
     }
-    this.markSeen(env.id);
+    if (!verifyEnvelope(env)) {
+      console.log("[SafeLink] 🚫 Dropped message that failed verification");
+      return null;
+    }
+    this.markSeen(env.from, env.id);
 
     const myId = await IdentityManager.getDeviceId();
     if (env.from === myId) return null;
