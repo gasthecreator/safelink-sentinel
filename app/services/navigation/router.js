@@ -383,7 +383,7 @@ const validPoint = (p) =>
  * @returns {{ok:true, mode, distanceM, durationS, geometry:number[][], steps, start, end, warnings:string[]}
  *         | {ok:false, reason:string, message:string}}
  */
-export function route(graph, from, to, { mode = WALK, avoid = [] } = {}) {
+export function route(graph, from, to, { mode = WALK, avoid = [], formatDistance = (m) => `${Math.round(m)} m` } = {}) {
   if (!validPoint(from) || !validPoint(to)) {
     return { ok: false, reason: "bad_input", message: "A position was missing or invalid." };
   }
@@ -400,8 +400,8 @@ export function route(graph, from, to, { mode = WALK, avoid = [] } = {}) {
 
   const warnings = [];
   const OFF_ROAD_WARN_M = 150;
-  if (a.offM > OFF_ROAD_WARN_M) warnings.push(`The nearest known road to you is ${Math.round(a.offM)} m away.`);
-  if (b.offM > OFF_ROAD_WARN_M) warnings.push(`The nearest known road to them is ${Math.round(b.offM)} m away.`);
+  if (a.offM > OFF_ROAD_WARN_M) warnings.push(`The nearest known road to you is ${formatDistance(a.offM)} away.`);
+  if (b.offM > OFF_ROAD_WARN_M) warnings.push(`The nearest known road to them is ${formatDistance(b.offM)} away.`);
 
   const snappedStart = { latitude: graph.lat[a.node], longitude: graph.lon[a.node], offM: Math.round(a.offM) };
   const snappedEnd = { latitude: graph.lat[b.node], longitude: graph.lon[b.node], offM: Math.round(b.offM) };

@@ -8,6 +8,8 @@ import { useNavigation } from "@react-navigation/native";
 import PackStore from "../services/maps/PackStore";
 import { fetchCatalog, describeCatalog, rankByPosition } from "../services/maps/MapCatalog";
 import { getPositionForAlert } from "../services/location/LocationService";
+import { formatDistance } from "../services/units/units";
+import { useUnits } from "../services/units/UnitStore";
 import { listPacks } from "../services/navigation/packs";
 import { MAP_CATALOG_PUBLIC_KEY, CONFIRM_DOWNLOAD_ABOVE_BYTES } from "../constants/maps";
 
@@ -15,6 +17,7 @@ const mb = (bytes) => (bytes < 1048576 ? `${Math.max(1, Math.round(bytes / 1024)
 
 export default function OfflineMapsScreen() {
   const navigation = useNavigation();
+  useUnits(); // re-render if the units setting changes
   const [installed, setInstalled] = useState([]);
   const [bundled, setBundled] = useState([]);
   const [free, setFree] = useState(null);
@@ -168,7 +171,7 @@ export default function OfflineMapsScreen() {
                     <Text style={styles.meta}>{mb(entry.sizeBytes)} · version {entry.version}</Text>
                     {here ? (
                       <Text style={coversYou ? styles.near : styles.meta}>
-                        {coversYou ? "Covers where you are" : `About ${distanceM < 1000 ? `${Math.round(distanceM / 10) * 10} m` : `${Math.round(distanceM / 1000)} km`} from you`}
+                        {coversYou ? "Covers where you are" : `About ${formatDistance(distanceM)} from you`}
                       </Text>
                     ) : null}
                     {mine ? (

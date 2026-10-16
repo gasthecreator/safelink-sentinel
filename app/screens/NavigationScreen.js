@@ -9,6 +9,8 @@ import RouteMap from "../components/RouteMap";
 import { findPackFor } from "../services/navigation/packs";
 import { route as computeRoute } from "../services/navigation/router";
 import { formatDistance, formatDuration } from "../services/navigation/mapView";
+import { useUnits } from "../services/units/UnitStore";
+import { getCurrentUnits } from "../services/units/units";
 import { getPositionForAlert, watchPositionUpdates } from "../services/location/LocationService";
 import { startFollowing, update as followUpdate, canReroute, markRerouted } from "../services/navigation/follow";
 import {
@@ -39,6 +41,7 @@ export default function NavigationScreen() {
   const mapWidth = Math.min(screenWidth - 40, 420);
 
   const destination = useMemo(() => sanitizePosition(alert.location), [alert.location]);
+  const [units] = useUnits(); // re-renders (and re-words the route) when the units setting changes
   const [mode, setMode] = useState("walk");
   const [source, setSource] = useState("gps"); // gps | place | typed
   const [gps, setGps] = useState({ state: "loading" });
@@ -142,8 +145,8 @@ export default function NavigationScreen() {
     if (!pack) return { kind: "no_pack", partial };
     // Blocked roads are only routed around if the person wants that; hazards are always listed.
     const avoid = avoidOn ? closures : closures.filter((c) => c.kind === "hazard");
-    return { kind: "routed", pack, result: computeRoute(pack, routeStart, destination, { mode, avoid }) };
-  }, [destination, routeStart, found, mode, closures, avoidOn]);
+    return { kind: "routed", pack, result: computeRoute(pack, routeStart, destination, { mode, avoid, formatDistance: (m) => formatDistance(m, units) }) };
+  }, [destination, routeStart, found, mode, closures, avoidOn, units]);
 
   const applyTyped = () => {
     const p = parseCoordinates(typed);
@@ -162,7 +165,7 @@ export default function NavigationScreen() {
   useEffect(() => {
     if (live && result && result.ok) {
       follower.current = startFollowing(result);
-      announcer.current = createAnnouncer({ mode });
+      announcer.current = createAnnouncer({ mode, units: getCurrentUnits() });
       // "Starting directions" once, "New route" after leaving the route; a quiet recalculation
       // (road reports changed) says nothing
       if (!startedSpeaking.current) say(announcer.current.start(result));
