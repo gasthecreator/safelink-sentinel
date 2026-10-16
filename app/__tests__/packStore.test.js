@@ -409,6 +409,8 @@ describe("ranking maps by where you are", () => {
   });
   test("a position on a map's edge counts as covered", () => {
     expect(distanceToBboxM({ latitude: 32.48, longitude: -92.7 }, grambling.entry.bbox)).toBe(0);
+  });
+});
 
 // ---- backup key and key retirement ----
 describe("backup publisher key", () => {
