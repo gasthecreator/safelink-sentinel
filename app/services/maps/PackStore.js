@@ -30,7 +30,7 @@ const sameBbox = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === 
 
 export function createPackStore(getFs, { chunkBytes = DEFAULT_CHUNK_BYTES, retryDelayMs = 1500 } = {}) {
   let fs = null;
-  let manifest = { format: 1, lastSequence: 0, packs: {} };
+  let manifest = { format: 1, lastSequence: 0, retired: [], packs: {} };
   let ready = null;
   let current = null; // the download in progress, if any
 
@@ -81,6 +81,7 @@ export function createPackStore(getFs, { chunkBytes = DEFAULT_CHUNK_BYTES, retry
           manifest = {
             format: 1,
             lastSequence: Number.isInteger(saved.lastSequence) && saved.lastSequence >= 0 ? saved.lastSequence : 0,
+            retired: Array.isArray(saved.retired) ? saved.retired.filter((k) => typeof k === "string").slice(0, 32) : [],
             packs,
           };
         }
@@ -214,6 +215,21 @@ export function createPackStore(getFs, { chunkBytes = DEFAULT_CHUNK_BYTES, retry
       await store.init();
       if (Number.isInteger(sequence) && sequence > manifest.lastSequence) {
         manifest.lastSequence = sequence;
+        await saveManifest();
+      }
+    },
+
+    /** Publisher keys the backup key has told this phone to stop trusting. */
+    async retiredKeys() {
+      await store.init();
+      return manifest.retired.slice();
+    },
+
+    async recordRetired(keys) {
+      await store.init();
+      const fresh = (keys || []).filter((k) => typeof k === "string" && !manifest.retired.includes(k));
+      if (fresh.length) {
+        manifest.retired = [...manifest.retired, ...fresh].slice(0, 32);
         await saveManifest();
       }
     },

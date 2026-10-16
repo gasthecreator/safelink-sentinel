@@ -17,6 +17,8 @@
 		82A3F2A803BBA08AF2C2017C /* SafeLinkPeripheral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC62A8B677A2069DC087138 /* SafeLinkPeripheral.swift */; };
 		921109127E633A46B48ADE2D /* SafeLinkPeripheral.m in Sources */ = {isa = PBXBuildFile; fileRef = C02B99A0679BE5B55F17FAEE /* SafeLinkPeripheral.m */; };
 		DFBECCA7D685D44E8102B2E0 /* libPods-SafeLinkMesh-SafeLinkMeshTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C1252D2B03E1DEFB3D86F0FE /* libPods-SafeLinkMesh-SafeLinkMeshTests.a */; };
+		68B70B64F4AFA17871CDBABA /* SafeLinkGuidance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FF22FBF86C9420F6377E62 /* SafeLinkGuidance.swift */; };
+		AB87C1A1414CCEC24C70108D /* SafeLinkGuidance.m in Sources */ = {isa = PBXBuildFile; fileRef = 48FCA8683B260340FA008F88 /* SafeLinkGuidance.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +57,8 @@
 		EB4C4CBB43F1D87582C0027E /* Pods-SafeLinkMesh-SafeLinkMeshTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SafeLinkMesh-SafeLinkMeshTests.release.xcconfig"; path = "Target Support Files/Pods-SafeLinkMesh-SafeLinkMeshTests/Pods-SafeLinkMesh-SafeLinkMeshTests.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F7544E02806F257BD8C0A4B3 /* SafeLinkMesh-Bridging-Header.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = "SafeLinkMesh-Bridging-Header.h"; path = "SafeLinkScaffold/SafeLinkMesh-Bridging-Header.h"; sourceTree = "<group>"; };
+		38FF22FBF86C9420F6377E62 /* SafeLinkGuidance.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SafeLinkGuidance.swift; path = SafeLinkScaffold/SafeLinkGuidance.swift; sourceTree = "<group>"; };
+		48FCA8683B260340FA008F88 /* SafeLinkGuidance.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = SafeLinkGuidance.m; path = SafeLinkScaffold/SafeLinkGuidance.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -104,6 +108,8 @@
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB71A68108700A75B9A /* main.m */,
 				6CC62A8B677A2069DC087138 /* SafeLinkPeripheral.swift */,
+				38FF22FBF86C9420F6377E62 /* SafeLinkGuidance.swift */,
+				48FCA8683B260340FA008F88 /* SafeLinkGuidance.m */,
 				C02B99A0679BE5B55F17FAEE /* SafeLinkPeripheral.m */,
 				F7544E02806F257BD8C0A4B3 /* SafeLinkMesh-Bridging-Header.h */,
 			);
@@ -415,6 +421,8 @@
 				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				82A3F2A803BBA08AF2C2017C /* SafeLinkPeripheral.swift in Sources */,
+				68B70B64F4AFA17871CDBABA /* SafeLinkGuidance.swift in Sources */,
+				AB87C1A1414CCEC24C70108D /* SafeLinkGuidance.m in Sources */,
 				921109127E633A46B48ADE2D /* SafeLinkPeripheral.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

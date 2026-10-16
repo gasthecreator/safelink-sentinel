@@ -215,15 +215,42 @@ describe("expiry, priority and limits", () => {
 
   test("over the cap, relayed messages are shed before our own", async () => {
     const alice = await boot(net, "alice");
-    const bob = await boot(net, "bob");
     await alice.geo.broadcast(alice.id, "my own request", {});
+    // 205 relayed messages from many different senders: more than the store holds
     for (let i = 0; i < 205; i++) {
-      const env = await bob.Env.createEnvelope({ id: `relay-${i}`, content: `r${i}`, ttl: 4 });
-      await alice.outbox.addRelay(env);
+      const envelope = { id: `relay-${i}`, from: `sender-${i}`, ts: new Date().toISOString(), hops: 0, ttl: 4, type: "broadcast", body: "{}" };
+      alice.outbox.records.set(`sender-${i}:relay-${i}`, { id: `sender-${i}:relay-${i}`, envelope, origin: "relay", deliveredTo: [], addedAt: i, ephemeral: false });
     }
+    alice.outbox.prune();
     const stats = alice.outbox.getStats();
     expect(stats.total).toBe(200);
     expect(stats.ownWaiting).toBe(1); // ours survived
+  });
+
+  test("one sender cannot fill the store: only their newest 10 relayed messages are kept", async () => {
+    const alice = await boot(net, "alice");
+    const spammer = await boot(net, "spammer");
+    const honest = await boot(net, "honest");
+    const real = await honest.Env.createEnvelope({ id: "real-alert", content: "real", ttl: 4 });
+    await alice.outbox.addRelay(real);
+    for (let i = 0; i < 60; i++) {
+      await alice.outbox.addRelay(await spammer.Env.createEnvelope({ id: `spam-${i}`, content: `s${i}`, ttl: 4 }));
+    }
+    const stats = alice.outbox.getStats();
+    expect(stats.relaying).toBe(11); // 10 from the spammer + the honest one
+    expect(alice.outbox.records.has(`${honest.id}:real-alert`)).toBe(true);
+  });
+
+  test("a message reusing another sender's id does not displace or block the real one", async () => {
+    const alice = await boot(net, "alice");
+    const honest = await boot(net, "honest");
+    const attacker = await boot(net, "attacker");
+    const fake = await attacker.Env.createEnvelope({ id: "shared-id", content: "fake", ttl: 4 });
+    const real = await honest.Env.createEnvelope({ id: "shared-id", content: "real", ttl: 4 });
+    await alice.outbox.addRelay(fake); // the attacker gets there first
+    await alice.outbox.addRelay(real);
+    expect(alice.outbox.getStats().relaying).toBe(2);
+    expect(alice.outbox.records.has(`${honest.id}:shared-id`)).toBe(true);
   });
 });
 

@@ -11,11 +11,16 @@ import { route as computeRoute } from "../services/navigation/router";
 import { formatDistance, formatDuration } from "../services/navigation/mapView";
 import { getPositionForAlert, watchPositionUpdates } from "../services/location/LocationService";
 import { startFollowing, update as followUpdate, canReroute, markRerouted } from "../services/navigation/follow";
+import {
+  keepAwake, speak, stopSpeaking, isSpeechAvailable, createAnnouncer, loadVoicePreference, saveVoicePreference,
+} from "../services/navigation/guidance";
 import { listPlaces } from "../services/location/PlaceStore";
 import { parseCoordinates } from "../services/location/places";
 import { sanitizePosition, describePosition } from "../services/location/position";
 import RoadReportStore from "../services/roads/RoadReportStore";
 import { describeKind } from "../services/roads/reports";
+
+const closureKey = (c) => [c.kind, c.latitude, c.longitude, c.radiusM, c.disputed || false];
 
 // A buzz is a nicety: if the phone refuses it, directions carry on.
 const buzz = (pattern) => {
@@ -49,6 +54,12 @@ export default function NavigationScreen() {
   const [livePos, setLivePos] = useState(null);
   const [progress, setProgress] = useState(null);
   const [liveNote, setLiveNote] = useState(null);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const [voiceAvailable, setVoiceAvailable] = useState(false);
+  const voiceRef = useRef(true);
+  const announcer = useRef(createAnnouncer({ mode: "walk" }));
+  const rerouted = useRef(false);
+  const startedSpeaking = useRef(false);
   const follower = useRef(null);
   const lastPos = useRef(null);
   const lastAnnounced = useRef(-1);
@@ -65,7 +76,11 @@ export default function NavigationScreen() {
     readGps();
     listPlaces().then(setPlaces).catch(() => {});
     // road reports from people nearby: kept current, since they expire and new ones arrive
-    const refresh = () => setClosures(RoadReportStore.closures());
+    // only replace the list when it really changed: a new list means a new route is worked out
+    const refresh = () => setClosures((prev) => {
+      const next = RoadReportStore.closures();
+      return JSON.stringify(prev.map(closureKey)) === JSON.stringify(next.map(closureKey)) ? prev : next;
+    });
     RoadReportStore.init().then(refresh).catch(() => {});
     const unsubscribe = RoadReportStore.subscribe(refresh);
     const timer = setInterval(refresh, 60000);
@@ -74,6 +89,26 @@ export default function NavigationScreen() {
       clearInterval(timer);
     };
   }, []);
+
+  useEffect(() => {
+    loadVoicePreference().then((on) => {
+      voiceRef.current = on;
+      setVoiceOn(on);
+    });
+    isSpeechAvailable().then(setVoiceAvailable);
+  }, []);
+
+  const say = useCallback((text) => {
+    if (text && voiceRef.current) speak(text);
+  }, []);
+
+  const toggleVoice = () => {
+    const next = !voiceOn;
+    voiceRef.current = next;
+    setVoiceOn(next);
+    saveVoicePreference(next);
+    if (!next) stopSpeaking();
+  };
 
   const start = useMemo(() => {
     if (source === "gps") return gps.state === "ok" ? gps.fix.position : null;
@@ -126,6 +161,13 @@ export default function NavigationScreen() {
   useEffect(() => {
     if (live && result && result.ok) {
       follower.current = startFollowing(result);
+      announcer.current = createAnnouncer({ mode });
+      // "Starting directions" once, "New route" after leaving the route; a quiet recalculation
+      // (road reports changed) says nothing
+      if (!startedSpeaking.current) say(announcer.current.start(result));
+      else if (rerouted.current) say(announcer.current.start(result, { rerouted: true }));
+      startedSpeaking.current = true;
+      rerouted.current = false;
       lastAnnounced.current = -1;
       setLiveNote((n) => (n && n.startsWith("You left") ? null : n));
       if (lastPos.current) {
@@ -148,6 +190,7 @@ export default function NavigationScreen() {
     follower.current = res.state;
     setProgress(res);
     if (res.ignored) return;
+    say(announcer.current.update(res));
     if (res.arrived || res.endOfRoad) {
       if (lastAnnounced.current !== "end") buzz([0, 400, 200, 400]);
       lastAnnounced.current = "end";
@@ -160,10 +203,12 @@ export default function NavigationScreen() {
     if (res.offRoute && canReroute(res.state)) {
       follower.current = markRerouted(res.state);
       setLiveNote("You left the route. Working out a new one...");
+      rerouted.current = true;
+      say(announcer.current.offRoute());
       buzz([0, 150, 100, 150]);
       setLiveOrigin(position);
     }
-  }, [destination]);
+  }, [destination, say]);
 
   useEffect(() => {
     if (!live) return undefined;
@@ -178,11 +223,23 @@ export default function NavigationScreen() {
     if (live && lastPos.current) setLiveOrigin(lastPos.current);
   }, [closures, avoidOn, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // the screen stays on while directions are live, and is let go of when they stop or the screen closes
+  useEffect(() => {
+    if (!live) return undefined;
+    keepAwake(true);
+    return () => {
+      keepAwake(false);
+      stopSpeaking();
+    };
+  }, [live]);
+
   const startLive = () => {
     lastPos.current = start;
     setLivePos(start);
     setLiveOrigin(start);
     setLiveNote(null);
+    startedSpeaking.current = false;
+    rerouted.current = false;
     setLive(true);
   };
   const stopLive = () => {
@@ -330,7 +387,7 @@ export default function NavigationScreen() {
             </Text>
           ) : null}
           {live ? (
-            <LivePanel progress={progress} note={liveNote} onStop={stopLive} />
+            <LivePanel progress={progress} note={liveNote} onStop={stopLive} voice={voiceAvailable ? { on: voiceOn, toggle: toggleVoice } : null} />
           ) : source === "gps" && gps.state === "ok" ? (
             <TouchableOpacity style={[styles.button, { marginBottom: 12 }]} onPress={startLive}>
               <Text style={styles.buttonText}>Start live directions</Text>
@@ -371,7 +428,7 @@ export default function NavigationScreen() {
   );
 }
 
-const LivePanel = ({ progress, note, onStop }) => (
+const LivePanel = ({ progress, note, onStop, voice }) => (
   <View style={styles.live}>
     {progress && progress.arrived ? (
       <Text style={styles.liveBig}>You have arrived</Text>
@@ -396,7 +453,12 @@ const LivePanel = ({ progress, note, onStop }) => (
       <Text style={styles.liveText}>Waiting for your position...</Text>
     )}
     {note ? <Text style={styles.liveNote}>{note}</Text> : null}
-    <Text style={styles.liveSmall}>Keep the screen on: the phone stops following you if it locks.</Text>
+    <Text style={styles.liveSmall}>The screen stays on while directions are live.</Text>
+    {voice ? (
+      <TouchableOpacity onPress={voice.toggle}>
+        <Text style={styles.link}>{voice.on ? "Voice on: tap to turn off" : "Voice off: tap to turn on"}</Text>
+      </TouchableOpacity>
+    ) : null}
     <TouchableOpacity style={[styles.button, styles.stop]} onPress={onStop}>
       <Text style={styles.buttonText}>Stop</Text>
     </TouchableOpacity>
