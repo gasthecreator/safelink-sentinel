@@ -88,6 +88,16 @@ class MessageRelay {
     }
   }
 
+  /** Forget everything held in memory (used when the person erases their data). */
+  reset() {
+    clearTimeout(this.seenTimer);
+    this.seenTimer = null;
+    this.seen.clear();
+    this.seenLoaded = Promise.resolve(); // nothing left in storage to load
+    this.queue.length = 0;
+    this.peerBackoff.clear();
+  }
+
   /** True if there is budget to look at another incoming message. */
   takeReceiveToken(now = Date.now()) {
     this.tokens = Math.min(RECEIVE_BURST, this.tokens + ((now - this.tokensAt) / 1000) * RECEIVE_REFILL_PER_S);

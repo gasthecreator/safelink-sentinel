@@ -40,7 +40,11 @@ These are limits of an open, serverless mesh, not bugs waiting for a fix.
 6. **Positions you send are readable.** An alert with your location lets every phone that receives it see
    where you are. That is the point of it, and it is off unless you include it.
 7. **Data on the phone is not separately encrypted.** Alerts, saved places and road reports sit in normal
-   app storage, protected only by the phone's own lock and sandbox. Private keys are the exception.
+   app storage, protected only by the phone's own lock and sandbox. Private keys are the exception. **Settings, Erase my data** removes
+   the personal ones (saved places, received and waiting messages, road reports, nearby devices, logs), and
+   **Erase everything and get a new identity** also discards the private keys, so the phone becomes a new device to
+   everyone else. Downloaded maps and settings are kept. Erasing is not a forensic wipe: the phone's storage may
+   still hold traces until it is overwritten, so for a phone you are giving away also use the phone's own reset.
 8. **Clocks.** Messages more than 5 minutes in the future or a day old are dropped, so a phone with a very
    wrong clock may miss or reject messages.
 
