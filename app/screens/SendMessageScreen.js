@@ -17,6 +17,9 @@ import { resolveAlertLocation } from "../services/location/resolveLocation";
 import { listPlaces } from "../services/location/PlaceStore";
 import { describeLocationOutcome, describePosition } from "../services/location/position";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 const PRIORITIES = ["critical", "high", "normal", "low"];
 
 const PRIORITY_COLORS = {
@@ -179,11 +182,11 @@ export default function SendMessageScreen({ route, navigation }) {
         style={styles.gradientContainer}
       >
         <ScrollView style={styles.container}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>{title}</Text>
+        <Text accessibilityRole="header" style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>
           Your message will travel across nearby devices, even without the internet.
         </Text>
@@ -201,11 +204,12 @@ export default function SendMessageScreen({ route, navigation }) {
         )}
 
         <TextInput
+          accessibilityLabel="Your message"
           style={styles.input}
           editable={!submitting}
           multiline
           placeholder={placeholder}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor="#64748B"
           value={text}
           onChangeText={setText}
         />
@@ -214,7 +218,9 @@ export default function SendMessageScreen({ route, navigation }) {
           <Text style={styles.label}>Priority</Text>
           <View style={styles.pillRow}>
             {PRIORITIES.map((p) => (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
+                accessibilityState={{ selected: priority === p, disabled: submitting }}
+                accessibilityLabel={`Priority ${p}`}
                 key={p}
                 disabled={submitting}
                 onPress={() => setPriority(p)}
@@ -242,6 +248,7 @@ export default function SendMessageScreen({ route, navigation }) {
         <View style={styles.row}>
           <Text style={styles.label}>Include my location</Text>
           <Switch
+            accessibilityLabel="Include my location in this message"
             value={includeLocation}
             onValueChange={setIncludeLocation}
             trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
@@ -255,7 +262,8 @@ export default function SendMessageScreen({ route, navigation }) {
                 ["gps", "GPS"],
                 ["place", "A saved place"],
               ].map(([value, label]) => (
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
+                  accessibilityState={{ selected: source === value }}
                   key={value}
                   style={[styles.sourceChip, source === value && styles.sourceChipActive]}
                   onPress={() => setSource(value)}
@@ -276,7 +284,8 @@ export default function SendMessageScreen({ route, navigation }) {
                   places.map((place) => {
                     const chosen = place.id === selectedPlaceId;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
+                        accessibilityState={{ selected: chosen }}
                         key={place.id}
                         style={[styles.placeRow, chosen && styles.placeRowChosen]}
                         onPress={() => setSelectedPlaceId(place.id)}
@@ -290,7 +299,7 @@ export default function SendMessageScreen({ route, navigation }) {
                     );
                   })
                 )}
-                <TouchableOpacity onPress={() => navigation.navigate("Places")}>
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Places")}>
                   <Text style={styles.manageLink}>Manage saved places</Text>
                 </TouchableOpacity>
               </View>
@@ -307,6 +316,7 @@ export default function SendMessageScreen({ route, navigation }) {
 
         <Text style={styles.label}>Where are you? (optional)</Text>
         <TextInput
+          accessibilityLabel="Where are you, optional"
           style={styles.whereInput}
           value={where}
           onChangeText={setWhere}
@@ -315,7 +325,7 @@ export default function SendMessageScreen({ route, navigation }) {
           editable={!submitting}
         />
 
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
           style={[styles.button, submitting && styles.buttonDisabled]}
           disabled={submitting}
           onPress={handleSubmit}
@@ -325,7 +335,7 @@ export default function SendMessageScreen({ route, navigation }) {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={onAutoPriority} disabled={!text.trim()}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={onAutoPriority} disabled={!text.trim()}>
           <Text style={styles.autoLink}>
             🤖 Auto-detect priority from message
           </Text>
@@ -347,7 +357,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
     backgroundColor: "#fff",
   },
-  sourceChipActive: { backgroundColor: "#3B82F6", borderColor: "#3B82F6" },
+  sourceChipActive: { backgroundColor: "#2563EB", borderColor: "#2563EB" },
   sourceChipText: { color: "#334155", fontWeight: "600" },
   sourceChipTextActive: { color: "#fff" },
   placesBox: { marginBottom: 6 },
@@ -362,7 +372,7 @@ const styles = StyleSheet.create({
   placeRowChosen: { borderColor: "#3B82F6", backgroundColor: "#EFF6FF" },
   placeRowName: { fontSize: 15, fontWeight: "600", color: "#0F172A" },
   placeRowMeta: { fontSize: 12, color: "#64748B", marginTop: 2 },
-  manageLink: { color: "#3B82F6", fontSize: 13, marginVertical: 6, textDecorationLine: "underline" },
+  manageLink: { color: "#2563EB", fontSize: 13, marginVertical: 6, textDecorationLine: "underline" },
   whereInput: {
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -390,7 +400,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   backText: {
-    color: "#3B82F6",
+    color: "#2563EB",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -449,7 +459,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   button: {
-    backgroundColor: "#10B981",
+    backgroundColor: "#047857",
     borderRadius: 999,
     paddingVertical: 14,
     alignItems: "center",
@@ -469,7 +479,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   autoLink: {
-    color: "#3B82F6",
+    color: "#2563EB",
     fontSize: 13,
     marginTop: 16,
     textAlign: "center",

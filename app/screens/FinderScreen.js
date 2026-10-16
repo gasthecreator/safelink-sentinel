@@ -10,6 +10,9 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import NodeDiscovery from "../services/mesh/NodeDiscovery";
 import { RssiTracker, BANDS } from "../services/proximity/RssiTracker";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 const BAND_COLORS = { here: "#16A34A", close: "#65A30D", near: "#D97706", far: "#DC2626" };
 const TREND_TEXT = {
   warmer: "Getting closer ▲",
@@ -37,10 +40,10 @@ export default function FinderScreen() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
         <Text style={styles.back}>← Back</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>Find {alert.title ? `"${alert.title}"` : "the sender"}</Text>
+      <Text accessibilityRole="header" style={styles.title}>Find {alert.title ? `"${alert.title}"` : "the sender"}</Text>
 
       {available === false ? (
         <View style={styles.card}>

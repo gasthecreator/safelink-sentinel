@@ -6,7 +6,10 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import Svg, { Line, Polyline, Circle, Text as SvgText } from "react-native-svg";
-import { projector, pickRoads, scaleBar } from "../services/navigation/mapView";
+import { projector, pickRoads, scaleBar, formatDistance } from "../services/navigation/mapView";
+
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 const ROUTE = "#2563EB";
 const ROAD = "#94A3B8";
@@ -30,7 +33,12 @@ export default function RouteMap({ graph, route, you, them, closures = [], width
 
   return (
     <View>
-      <View style={[styles.frame, { width, height }]}>
+      <View
+        style={[styles.frame, { width, height }]}
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={route ? `Map of the route from you to them, ${formatDistance(route.distanceM)} long. The turn-by-turn directions below say the same in words.` : "Map of the roads around you and them."}
+      >
         <Svg width={width} height={height}>
           {roads.map((r) => {
             const a = xy(r.a[0], r.a[1]);
@@ -85,13 +93,13 @@ export default function RouteMap({ graph, route, you, them, closures = [], width
         </Svg>
       </View>
       <View style={styles.controls}>
-        <TouchableOpacity style={styles.btn} onPress={() => setZoom((z) => Math.max(0.5, z / 1.6))}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Zoom out" style={styles.btn} onPress={() => setZoom((z) => Math.max(0.5, z / 1.6))}>
           <Text style={styles.btnText}>−</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.btn} onPress={() => setZoom((z) => Math.min(8, z * 1.6))}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Zoom in" style={styles.btn} onPress={() => setZoom((z) => Math.min(8, z * 1.6))}>
           <Text style={styles.btnText}>+</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.btn} onPress={() => setZoom(1)}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Fit the whole route on the map" style={styles.btn} onPress={() => setZoom(1)}>
           <Text style={styles.btnText}>Fit</Text>
         </TouchableOpacity>
       </View>

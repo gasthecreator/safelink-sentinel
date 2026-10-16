@@ -6,6 +6,9 @@ import * as Animatable from "react-native-animatable";
 import LinearGradient from "react-native-linear-gradient";
 import NodeDiscovery from "../services/mesh/NodeDiscovery";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 export default function PeerListScreen() {
   const [peers, setPeers] = useState(() => NodeDiscovery.getPeers());
   const navigation = useNavigation();
@@ -53,7 +56,7 @@ export default function PeerListScreen() {
       colors={["#F8FAFC", "#E0E7FF"]}
       style={styles.container}
     >
-      <Text style={styles.title}>Connected Devices</Text>
+      <Text accessibilityRole="header" style={styles.title}>Connected Devices</Text>
       <Text style={styles.subtitle}>
         SafeLink nodes currently within Bluetooth range of this phone.
       </Text>
@@ -68,7 +71,7 @@ export default function PeerListScreen() {
           contentContainerStyle={{ paddingBottom: 40 }}
         />
       )}
-      <TouchableOpacity
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
         onPress={() => navigation.goBack()}
         style={styles.backButton}
       >

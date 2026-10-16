@@ -375,6 +375,8 @@ For detailed API documentation, see [docs/api-endpoints.md](docs/api-endpoints.m
 
 For directions that work with no internet (offline road maps), see [docs/OFFLINE_MAPS.md](docs/OFFLINE_MAPS.md).
 
+For what the app does for screen readers, large text and reduced motion (and what is untested), see [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md).
+
 To hand a build to other people (signing, versions, what to tell testers), see [docs/RELEASING.md](docs/RELEASING.md).
 
 For what is protected and what is not (spam, fake senders, replays), see [docs/SECURITY.md](docs/SECURITY.md).

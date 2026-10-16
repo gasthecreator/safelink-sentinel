@@ -5,6 +5,9 @@ import * as Animatable from "react-native-animatable";
 import GestureRecognizer from "react-native-swipe-gestures";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 const slides = [
   {
     id: 1,
@@ -99,7 +102,7 @@ export default function OnboardingScreen({ navigation }) {
           ))}
         </View>
 
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
           onPress={handleNext}
           style={[styles.button, { backgroundColor: slide.color }]}
         >

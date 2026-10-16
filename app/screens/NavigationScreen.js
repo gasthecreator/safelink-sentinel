@@ -3,7 +3,7 @@
 // No internet. Start from GPS, a saved place, or typed coordinates; walk or drive.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Vibration, useWindowDimensions } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Vibration, AccessibilityInfo, useWindowDimensions } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import RouteMap from "../components/RouteMap";
 import { findPackFor } from "../services/navigation/packs";
@@ -22,6 +22,9 @@ import { parseCoordinates } from "../services/location/places";
 import { sanitizePosition, describePosition } from "../services/location/position";
 import RoadReportStore from "../services/roads/RoadReportStore";
 import { describeKind } from "../services/roads/reports";
+
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 const closureKey = (c) => [c.kind, c.latitude, c.longitude, c.radiusM, c.disputed || false];
 
@@ -102,8 +105,18 @@ export default function NavigationScreen() {
     isSpeechAvailable().then(setVoiceAvailable);
   }, []);
 
+  // With a screen reader (TalkBack / VoiceOver) running, instructions go through it, so there is one
+  // voice, in the person's own speech settings, rather than two talking over each other.
+  const screenReader = useRef(false);
+  useEffect(() => {
+    AccessibilityInfo.isScreenReaderEnabled().then((on) => { screenReader.current = on; }).catch(() => {});
+    const sub = AccessibilityInfo.addEventListener("screenReaderChanged", (on) => { screenReader.current = on; });
+    return () => sub && sub.remove && sub.remove();
+  }, []);
   const say = useCallback((text) => {
-    if (text && voiceRef.current) speak(text);
+    if (!text) return;
+    if (screenReader.current) AccessibilityInfo.announceForAccessibility(text);
+    else if (voiceRef.current) speak(text);
   }, []);
 
   const toggleVoice = () => {
@@ -261,10 +274,10 @@ export default function NavigationScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 48 }}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
         <Text style={styles.back}>← Back</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>Directions to {alert.title ? `"${alert.title}"` : "them"}</Text>
+      <Text accessibilityRole="header" style={styles.title}>Directions to {alert.title ? `"${alert.title}"` : "them"}</Text>
       {alert.subtitle ? <Text style={styles.where}>{alert.subtitle}</Text> : null}
       {alert.where ? <Text style={styles.where}>They said: {alert.where}</Text> : null}
       <Text style={styles.note}>
@@ -294,7 +307,7 @@ export default function NavigationScreen() {
             </Text>
           ) : null}
           {source === "gps" && gps.state !== "loading" ? (
-            <TouchableOpacity onPress={readGps}><Text style={styles.link}>Try GPS again</Text></TouchableOpacity>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={readGps}><Text style={styles.link}>Try GPS again</Text></TouchableOpacity>
           ) : null}
 
           {source === "place" ? (
@@ -302,7 +315,7 @@ export default function NavigationScreen() {
               <Text style={styles.body}>No saved places yet. Save one from the home screen's Saved places.</Text>
             ) : (
               places.map((p) => (
-                <TouchableOpacity key={p.id} style={[styles.place, p.id === placeId && styles.placeActive]} onPress={() => setPlaceId(p.id)}>
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ selected: p.id === placeId }} key={p.id} style={[styles.place, p.id === placeId && styles.placeActive]} onPress={() => setPlaceId(p.id)}>
                   <Text style={styles.placeName}>{p.id === placeId ? "● " : "○ "}{p.name}</Text>
                 </TouchableOpacity>
               ))
@@ -312,15 +325,16 @@ export default function NavigationScreen() {
           {source === "typed" ? (
             <View>
               <TextInput
+                accessibilityLabel="Your starting point as coordinates, latitude then longitude"
                 style={styles.input}
                 value={typed}
                 onChangeText={setTyped}
                 placeholder="32.5266, -92.7165"
-                placeholderTextColor="#64748B"
+                placeholderTextColor="#94A3B8"
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <TouchableOpacity style={styles.button} onPress={applyTyped}><Text style={styles.buttonText}>Use these coordinates</Text></TouchableOpacity>
+              <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={styles.button} onPress={applyTyped}><Text style={styles.buttonText}>Use these coordinates</Text></TouchableOpacity>
               {typedError ? <Text style={styles.error}>{typedError}</Text> : null}
             </View>
           ) : null}
@@ -357,7 +371,7 @@ export default function NavigationScreen() {
               : "None of the maps on this phone cover these places. "}
             Download a map for this area while you have internet, or use their position and the Maps button on the alert instead.
           </Text>
-          <TouchableOpacity style={[styles.button, { marginTop: 12 }]} onPress={() => navigation.navigate("OfflineMaps")}>
+          <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, { marginTop: 12 }]} onPress={() => navigation.navigate("OfflineMaps")}>
             <Text style={styles.buttonText}>Get offline maps</Text>
           </TouchableOpacity>
         </Card>
@@ -368,7 +382,7 @@ export default function NavigationScreen() {
           <Text style={styles.big}>{result.reason === "blocked_by_reports" ? "Reported closures block the way" : "No route"}</Text>
           <Text style={styles.body}>{result.message}</Text>
           {result.reason === "blocked_by_reports" ? (
-            <TouchableOpacity style={[styles.button, { marginTop: 12 }]} onPress={() => setAvoidOn(false)}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, { marginTop: 12 }]} onPress={() => setAvoidOn(false)}>
               <Text style={styles.buttonText}>Show the route anyway</Text>
             </TouchableOpacity>
           ) : null}
@@ -400,7 +414,7 @@ export default function NavigationScreen() {
           {live ? (
             <LivePanel progress={progress} note={liveNote} onStop={stopLive} voice={voiceAvailable ? { on: voiceOn, toggle: toggleVoice } : null} />
           ) : source === "gps" && gps.state === "ok" ? (
-            <TouchableOpacity style={[styles.button, { marginBottom: 12 }]} onPress={startLive}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, { marginBottom: 12 }]} onPress={startLive}>
               <Text style={styles.buttonText}>Start live directions</Text>
             </TouchableOpacity>
           ) : null}
@@ -428,7 +442,7 @@ export default function NavigationScreen() {
             </View>
           ))}
           {alert.senderId ? (
-            <TouchableOpacity style={[styles.button, { marginTop: 18 }]} onPress={() => navigation.navigate("Finder", { alert })}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, { marginTop: 18 }]} onPress={() => navigation.navigate("Finder", { alert })}>
               <Text style={styles.buttonText}>Close by? Find them by Bluetooth</Text>
             </TouchableOpacity>
           ) : null}
@@ -466,11 +480,11 @@ const LivePanel = ({ progress, note, onStop, voice }) => (
     {note ? <Text style={styles.liveNote}>{note}</Text> : null}
     <Text style={styles.liveSmall}>The screen stays on while directions are live, and they keep going if you lock the phone.</Text>
     {voice ? (
-      <TouchableOpacity onPress={voice.toggle}>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ checked: voice.on }} accessibilityLabel={voice.on ? "Spoken directions are on. Double tap to turn off." : "Spoken directions are off. Double tap to turn on."} onPress={voice.toggle}>
         <Text style={styles.link}>{voice.on ? "Voice on: tap to turn off" : "Voice off: tap to turn on"}</Text>
       </TouchableOpacity>
     ) : null}
-    <TouchableOpacity style={[styles.button, styles.stop]} onPress={onStop}>
+    <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, styles.stop]} onPress={onStop}>
       <Text style={styles.buttonText}>Stop</Text>
     </TouchableOpacity>
   </View>
@@ -478,7 +492,7 @@ const LivePanel = ({ progress, note, onStop, voice }) => (
 
 const Card = ({ children }) => <View style={styles.card}>{children}</View>;
 const Chip = ({ label, active, onPress }) => (
-  <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
+  <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ selected: !!active }} style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
     <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
   </TouchableOpacity>
 );
@@ -507,7 +521,7 @@ const styles = StyleSheet.create({
   placeActive: { borderColor: "#2563EB" },
   placeName: { color: "#F8FAFC", fontSize: 15, fontWeight: "600" },
   input: { backgroundColor: "#111C30", color: "#F8FAFC", borderRadius: 10, padding: 12, fontSize: 16, borderWidth: 1, borderColor: "#334155", marginBottom: 8 },
-  button: { backgroundColor: "#16A34A", borderRadius: 12, padding: 14, alignItems: "center" },
+  button: { backgroundColor: "#15803D", borderRadius: 12, padding: 14, alignItems: "center" },
   buttonText: { color: "#fff", fontSize: 16, fontWeight: "800" },
   step: { flexDirection: "row", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#1E293B" },
   stepNum: { color: "#38BDF8", fontWeight: "800", width: 28, fontSize: 16 },
@@ -519,5 +533,5 @@ const styles = StyleSheet.create({
   liveSmall: { color: "#94A3B8", fontSize: 13, marginTop: 4 },
   liveNote: { color: "#FBBF24", fontSize: 14, marginTop: 8 },
   stop: { backgroundColor: "#DC2626", marginTop: 12 },
-  attribution: { color: "#64748B", fontSize: 12, marginTop: 18, textAlign: "center" },
+  attribution: { color: "#94A3B8", fontSize: 12, marginTop: 18, textAlign: "center" },
 });

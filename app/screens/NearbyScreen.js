@@ -14,6 +14,9 @@ import { placeKinds, nearestPlaces } from "../services/navigation/places";
 import { formatDistance } from "../services/units/units";
 import { useUnits } from "../services/units/UnitStore";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 export default function NearbyScreen() {
   const navigation = useNavigation();
   useUnits(); // re-render if the units setting changes
@@ -65,10 +68,10 @@ export default function NearbyScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back">
+      <TouchableOpacity hitSlop={HIT_SLOP} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back">
         <Text style={styles.back}>‹ Back</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>Find help nearby</Text>
+      <Text accessibilityRole="header" style={styles.title}>Find help nearby</Text>
       <Text style={styles.intro}>The nearest places from the offline map on this phone. No internet needed.</Text>
 
       {locating ? (
@@ -80,11 +83,11 @@ export default function NearbyScreen() {
         <View style={styles.card}>
           <Text style={styles.name}>No position yet</Text>
           <Text style={styles.meta}>GPS has no fix (indoors?) or location is off. Try again, or start from a saved place.</Text>
-          <TouchableOpacity style={styles.button} onPress={locate} accessibilityRole="button">
+          <TouchableOpacity hitSlop={HIT_SLOP} style={styles.button} onPress={locate} accessibilityRole="button">
             <Text style={styles.buttonText}>Try GPS again</Text>
           </TouchableOpacity>
           {saved.map((p) => (
-            <TouchableOpacity key={p.id} style={styles.row} onPress={() => setPosition(sanitizePosition(p))} accessibilityRole="button">
+            <TouchableOpacity hitSlop={HIT_SLOP} key={p.id} style={styles.row} onPress={() => setPosition(sanitizePosition(p))} accessibilityRole="button">
               <Text style={styles.name}>{p.name}</Text>
               <Text style={styles.link}>Use</Text>
             </TouchableOpacity>
@@ -96,7 +99,7 @@ export default function NearbyScreen() {
         <View style={styles.card}>
           <Text style={styles.name}>No offline map for where you are</Text>
           <Text style={styles.meta}>Download one while you have internet, and this will work without it.</Text>
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate("OfflineMaps")} accessibilityRole="button">
+          <TouchableOpacity hitSlop={HIT_SLOP} style={styles.button} onPress={() => navigation.navigate("OfflineMaps")} accessibilityRole="button">
             <Text style={styles.buttonText}>Get offline maps</Text>
           </TouchableOpacity>
         </View>
@@ -106,7 +109,7 @@ export default function NearbyScreen() {
           <Text style={styles.meta}>
             "{pack.name}" was made before places were included. Download an updated map to find hospitals, shelters and water.
           </Text>
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate("OfflineMaps")} accessibilityRole="button">
+          <TouchableOpacity hitSlop={HIT_SLOP} style={styles.button} onPress={() => navigation.navigate("OfflineMaps")} accessibilityRole="button">
             <Text style={styles.buttonText}>Get offline maps</Text>
           </TouchableOpacity>
         </View>
@@ -114,7 +117,7 @@ export default function NearbyScreen() {
         <>
           <View style={styles.chips}>
             {kinds.map((k) => (
-              <TouchableOpacity
+              <TouchableOpacity hitSlop={HIT_SLOP}
                 key={k.kind}
                 style={[styles.chip, kind === k.kind && styles.chipActive]}
                 onPress={() => setKind(k.kind)}
@@ -127,7 +130,7 @@ export default function NearbyScreen() {
             ))}
           </View>
           {results.map((p, i) => (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={HIT_SLOP}
               key={`${p.latitude},${p.longitude},${i}`}
               style={styles.card}
               onPress={() => go(p)}
@@ -153,15 +156,15 @@ export default function NearbyScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC", paddingTop: 56, paddingHorizontal: 16 },
-  back: { color: "#3B82F6", fontSize: 16, fontWeight: "600", marginBottom: 6 },
+  back: { color: "#2563EB", fontSize: 16, fontWeight: "600", marginBottom: 6 },
   title: { fontSize: 26, fontWeight: "800", color: "#0F172A", marginBottom: 6 },
   intro: { color: "#475569", fontSize: 14, lineHeight: 20, marginBottom: 14 },
   card: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 12 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#E2E8F0", marginTop: 8 },
   name: { fontSize: 16, fontWeight: "700", color: "#0F172A" },
   meta: { color: "#64748B", fontSize: 13, lineHeight: 18, marginTop: 4 },
-  link: { color: "#3B82F6", fontWeight: "700", fontSize: 14, marginTop: 8 },
-  button: { backgroundColor: "#10B981", borderRadius: 10, paddingVertical: 12, alignItems: "center", marginTop: 12 },
+  link: { color: "#2563EB", fontWeight: "700", fontSize: 14, marginTop: 8 },
+  button: { backgroundColor: "#047857", borderRadius: 10, paddingVertical: 12, alignItems: "center", marginTop: 12 },
   buttonText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   chips: { flexDirection: "row", flexWrap: "wrap", marginBottom: 8 },
   chip: { borderWidth: 1, borderColor: "#CBD5E1", borderRadius: 18, paddingVertical: 8, paddingHorizontal: 14, marginRight: 8, marginBottom: 8, backgroundColor: "#fff" },

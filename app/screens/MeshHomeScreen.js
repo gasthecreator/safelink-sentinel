@@ -21,6 +21,9 @@ import NodeDiscovery from "../services/mesh/NodeDiscovery";
 import Outbox from "../services/mesh/Outbox";
 import { describePosition } from "../services/location/position";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 // Where the sender is: their own words first, then the coordinates if they shared any.
 function describeWhere(alert) {
   const position = describePosition(alert.location);
@@ -246,11 +249,11 @@ export default function MeshHomeScreen({ navigation }) {
           )}
 
           <View style={styles.quickActions}>
-            <Text style={styles.sectionTitle}>Quick actions</Text>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>Quick actions</Text>
             
             <Animatable.View animation="fadeInUp" delay={300} duration={800}>
               <View style={styles.actionsRow}>
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
                   style={[styles.actionCard, styles.actionPrimary]}
                   onPress={handleRequestHelp}
                 >
@@ -261,7 +264,7 @@ export default function MeshHomeScreen({ navigation }) {
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
                   style={styles.actionCard}
                   onPress={handleSendUpdate}
                 >
@@ -276,7 +279,7 @@ export default function MeshHomeScreen({ navigation }) {
 
             <Animatable.View animation="fadeInUp" delay={600} duration={800}>
               <View style={styles.actionsRow}>
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
                   style={styles.actionCardSmall}
                   onPress={handleViewPeers}
                 >
@@ -284,7 +287,7 @@ export default function MeshHomeScreen({ navigation }) {
                   <Text style={styles.smallText}>{peers.length} connected</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
                   style={styles.actionCardSmall}
                   onPress={handleStressTest}
                 >
@@ -298,7 +301,7 @@ export default function MeshHomeScreen({ navigation }) {
           <NearbyDevices peers={peers} />
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Active alerts & requests</Text>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>Active alerts & requests</Text>
             
             {alerts.length === 0 ? (
               <View style={styles.emptyAlerts}>
@@ -313,7 +316,9 @@ export default function MeshHomeScreen({ navigation }) {
                 if (!formatted) return null;
                 
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
+                    accessibilityLabel={`${formatted.priority || "normal"} priority. ${formatted.title}. ${formatted.description || ""} ${formatted.address ? `Where: ${formatted.address}.` : ""} ${formatted.time || ""}`}
+                    accessibilityHint="Opens the alert"
                     key={formatted.id}
                     onPress={() =>
                       navigation.navigate("AlertDetail", {
@@ -337,7 +342,7 @@ export default function MeshHomeScreen({ navigation }) {
             {/* Fallback example alerts if no real data */}
             {alerts.length === 0 && __DEV__ && (
               <>
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Example alert: medical support needed"
                   onPress={() =>
                     navigation.navigate("AlertDetail", {
                       alert: {
@@ -365,7 +370,7 @@ export default function MeshHomeScreen({ navigation }) {
                   />
                 </TouchableOpacity>
                 
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Example alert: water needed"
                   onPress={() =>
                     navigation.navigate("AlertDetail", {
                       alert: {
@@ -396,22 +401,22 @@ export default function MeshHomeScreen({ navigation }) {
             )}
           </View>
           <View style={styles.footerLinks}>
-            <TouchableOpacity onPress={() => navigation.navigate("Nearby")}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Nearby")}>
               <Text style={styles.diagnosticsLink}>Find help nearby</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("ReportRoad")}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("ReportRoad")}>
               <Text style={styles.diagnosticsLink}>Report a road</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("Places")}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Places")}>
               <Text style={styles.diagnosticsLink}>Saved places</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("OfflineMaps")}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("OfflineMaps")}>
               <Text style={styles.diagnosticsLink}>Offline maps</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Settings")}>
               <Text style={styles.diagnosticsLink}>Settings</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("Diagnostics")}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Diagnostics")}>
               <Text style={styles.diagnosticsLink}>Diagnostics</Text>
             </TouchableOpacity>
           </View>
@@ -423,7 +428,7 @@ export default function MeshHomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   waitingText: {
-    color: "#B45309",
+    color: "#92400E",
     backgroundColor: "#FEF3C7",
     borderRadius: 10,
     padding: 10,
