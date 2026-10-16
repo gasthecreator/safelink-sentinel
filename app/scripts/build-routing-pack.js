@@ -66,7 +66,14 @@ async function fetchOverpass(box) {
 }
 
 async function fetchOverpassOnce([s, w, n, e]) {
-  const query = `[out:json][timeout:90];way["highway"](${s},${w},${n},${e});(._;>;);out body;`;
+  // roads with all their points, then the places worth finding in an emergency (with a centre point for outlines)
+  const box = `${s},${w},${n},${e}`;
+  const places = '"amenity"~"^(hospital|clinic|pharmacy|fire_station|police|drinking_water|water_point|social_facility)$"';
+  const query =
+    `[out:json][timeout:90];way["highway"](${box});(._;>;);out body;` +
+    `nwr[${places}](${box});out center tags;` +
+    `nwr["emergency"="assembly_point"](${box});out center tags;` +
+    `nwr["social_facility"="shelter"](${box});out center tags;`;
   const body = `data=${encodeURIComponent(query)}`;
   let lastError;
   for (const url of ENDPOINTS) {

@@ -36,13 +36,23 @@ function splitBbox([s, w, n, e], maxArea = MAX_TILE_AREA) {
 function mergeOverpass(results) {
   const nodes = new Map();
   const ways = new Map();
+  const relations = new Map();
   for (const result of results) {
     for (const el of result.elements || []) {
-      if (el.type === "node") nodes.set(el.id, el);
-      else if (el.type === "way") ways.set(el.id, el);
+      if (el.type === "node") {
+        // a place and a road point can be the same OSM node: keep the one that carries the tags
+        const have = nodes.get(el.id);
+        if (!have || (el.tags && !have.tags)) nodes.set(el.id, el);
+      } else if (el.type === "way") {
+        const have = ways.get(el.id);
+        // a road comes with its list of points; a place's outline only has a centre. Keep the fuller one.
+        if (!have || (el.nodes && !have.nodes)) ways.set(el.id, el);
+      } else if (el.type === "relation") {
+        relations.set(el.id, el);
+      }
     }
   }
-  return { elements: [...nodes.values(), ...ways.values()] };
+  return { elements: [...nodes.values(), ...ways.values(), ...relations.values()] };
 }
 
 module.exports = { splitBbox, mergeOverpass, MAX_TILE_AREA, MAX_TOTAL_AREA };

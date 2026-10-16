@@ -396,6 +396,9 @@ export default function MeshHomeScreen({ navigation }) {
             )}
           </View>
           <View style={styles.footerLinks}>
+            <TouchableOpacity onPress={() => navigation.navigate("Nearby")}>
+              <Text style={styles.diagnosticsLink}>Find help nearby</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate("ReportRoad")}>
               <Text style={styles.diagnosticsLink}>Report a road</Text>
             </TouchableOpacity>
