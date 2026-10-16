@@ -30,7 +30,7 @@ function signCatalog(body, secretKeyB64) {
  * Sequence goes up by one each time; a pack's version goes up only when its content changed, so
  * phones re-download only what is new. File names carry the version so they can be cached for ever.
  */
-function buildBody({ previous = null, packs, baseUrl, now = new Date() }) {
+function buildBody({ previous = null, packs, baseUrl, now = new Date(), retire = [], minSequence = 0 }) {
   if (!/^https?:\/\//.test(baseUrl)) throw new Error("The base URL must start with https://");
   const base = baseUrl.replace(/\/+$/, "");
   const before = new Map(((previous && previous.packs) || []).map((p) => [p.id, p]));
@@ -51,8 +51,10 @@ function buildBody({ previous = null, packs, baseUrl, now = new Date() }) {
     };
   });
   return {
-    sequence: ((previous && previous.sequence) || 0) + 1,
+    // a catalog that retires a key should jump well ahead, so it outranks anything a thief may have published
+    sequence: Math.max(((previous && previous.sequence) || 0) + 1, minSequence),
     generatedAt: now.toISOString(),
+    ...(retire.length ? { retire } : {}),
     packs: entries,
   };
 }

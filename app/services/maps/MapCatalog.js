@@ -6,6 +6,7 @@ import { verifyCatalog, CatalogError } from "./catalog.js";
 import {
   MAP_CATALOG_URL,
   MAP_CATALOG_PUBLIC_KEY,
+  MAP_CATALOG_BACKUP_PUBLIC_KEY,
   ALLOW_INSECURE_PACK_URLS,
   MAX_CATALOG_BYTES,
 } from "../../constants/maps.js";
@@ -20,6 +21,7 @@ export async function fetchCatalog(store, {
   fetchImpl = (...a) => fetch(...a),
   url = MAP_CATALOG_URL,
   publicKey = MAP_CATALOG_PUBLIC_KEY,
+  backupPublicKey = MAP_CATALOG_BACKUP_PUBLIC_KEY,
   allowInsecure = ALLOW_INSECURE_PACK_URLS,
   now = Date.now(),
 } = {}) {
@@ -49,7 +51,15 @@ export async function fetchCatalog(store, {
   } catch {
     throw new CatalogError("invalid", "The map list could not be read.");
   }
-  const catalog = verifyCatalog(wire, { publicKey, lastSequence: await store.lastSequence(), allowInsecure, now });
+  const catalog = verifyCatalog(wire, {
+    publicKey,
+    backupPublicKey,
+    retiredKeys: await store.retiredKeys(),
+    lastSequence: await store.lastSequence(),
+    allowInsecure,
+    now,
+  });
+  await store.recordRetired(catalog.retire); // before the sequence: a catalog that retires a key must stick
   await store.recordSequence(catalog.sequence);
   return catalog;
 }
