@@ -376,3 +376,38 @@ describe("resumable downloads", () => {
     expect((await store.installed()).length).toBe(1);
   });
 });
+
+// ---- maps near you ----
+describe("ranking maps by where you are", () => {
+  const { rankByPosition, distanceToBboxM } = require("../services/maps/MapCatalog.js");
+  const mk = (id, bbox) => ({ entry: { id, bbox }, status: "new" });
+  const grambling = mk("grambling", [32.48, -92.76, 32.58, -92.60]);
+  const dallas = mk("dallas", [32.60, -97.10, 32.95, -96.55]);
+  const lisbon = mk("lisbon", [38.6, -9.3, 38.8, -9.0]);
+  const here = { latitude: 32.5266, longitude: -92.7165 };
+
+  test("inside a map is distance 0; outside is the distance to its nearest edge", () => {
+    expect(distanceToBboxM(here, grambling.entry.bbox)).toBe(0);
+    // 0.1 degree of latitude north of a map's top edge is about 11.1 km
+    expect(Math.round(distanceToBboxM({ latitude: 32.68, longitude: -92.7 }, grambling.entry.bbox) / 100)).toBe(Math.round(11132 / 100));
+    // west of the edge: shrinks with latitude (cos), here about 0.1 deg * 111.3 km * cos(32.5)
+    const west = distanceToBboxM({ latitude: 32.5, longitude: -92.86 }, grambling.entry.bbox);
+    expect(west).toBeGreaterThan(9000);
+    expect(west).toBeLessThan(9700);
+  });
+  test("the map covering you comes first, then the nearest", () => {
+    const ranked = rankByPosition([lisbon, dallas, grambling], here);
+    expect(ranked.map((o) => o.entry.id)).toEqual(["grambling", "dallas", "lisbon"]);
+    expect(ranked[0].coversYou).toBe(true);
+    expect(ranked[1].coversYou).toBe(false);
+    expect(ranked[1].distanceM).toBeGreaterThan(0);
+  });
+  test("without a usable position the order is left alone", () => {
+    const list = [lisbon, dallas, grambling];
+    expect(rankByPosition(list, null)).toBe(list);
+    expect(rankByPosition(list, { latitude: NaN, longitude: 1 })).toBe(list);
+  });
+  test("a position on a map's edge counts as covered", () => {
+    expect(distanceToBboxM({ latitude: 32.48, longitude: -92.7 }, grambling.entry.bbox)).toBe(0);
+  });
+});

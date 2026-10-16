@@ -6,7 +6,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import PackStore from "../services/maps/PackStore";
-import { fetchCatalog, describeCatalog } from "../services/maps/MapCatalog";
+import { fetchCatalog, describeCatalog, rankByPosition } from "../services/maps/MapCatalog";
+import { getPositionForAlert } from "../services/location/LocationService";
 import { listPacks } from "../services/navigation/packs";
 import { MAP_CATALOG_PUBLIC_KEY, CONFIRM_DOWNLOAD_ABOVE_BYTES } from "../constants/maps";
 
@@ -21,6 +22,9 @@ export default function OfflineMapsScreen() {
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState(null);
   const [active, setActive] = useState(null); // { id, bytes, total }
+  const [here, setHere] = useState(null); // your position, only after you ask for it
+  const [locating, setLocating] = useState(false);
+  const [hereNote, setHereNote] = useState(null);
   const mounted = useRef(true);
 
   const refresh = useCallback(async () => {
@@ -72,6 +76,17 @@ export default function OfflineMapsScreen() {
         refresh().catch(() => {});
       }
     }
+  };
+
+  const findMe = async () => {
+    setLocating(true);
+    setHereNote(null);
+    // a fresh fix if there is one, else the last known (this can take a few seconds)
+    const fix = await getPositionForAlert();
+    if (!mounted.current) return;
+    setLocating(false);
+    if (fix.position) setHere(fix.position);
+    else setHereNote("Could not get your position. Check that location is allowed for this app and try again.");
   };
 
   const askDownload = (entry) => {
@@ -138,13 +153,24 @@ export default function OfflineMapsScreen() {
               {checking ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{offers ? "Check again" : "Check for maps"}</Text>}
             </TouchableOpacity>
             {offers && offers.length === 0 ? <Text style={styles.empty}>No maps are listed right now.</Text> : null}
-            {(offers || []).map(({ entry, status }) => {
+            {offers && offers.length > 0 ? (
+              <TouchableOpacity onPress={findMe} disabled={locating}>
+                <Text style={styles.link2}>{locating ? "Finding you..." : here ? "Maps near you (tap to refresh)" : "Show maps near me"}</Text>
+              </TouchableOpacity>
+            ) : null}
+            {hereNote ? <Text style={styles.error}>{hereNote}</Text> : null}
+            {rankByPosition(offers || [], here).map(({ entry, status, coversYou, distanceM }) => {
               const mine = active && active.id === entry.id;
               return (
                 <View key={entry.id} style={styles.row}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{entry.name}</Text>
                     <Text style={styles.meta}>{mb(entry.sizeBytes)} · version {entry.version}</Text>
+                    {here ? (
+                      <Text style={coversYou ? styles.near : styles.meta}>
+                        {coversYou ? "Covers where you are" : `About ${distanceM < 1000 ? `${Math.round(distanceM / 10) * 10} m` : `${Math.round(distanceM / 1000)} km`} from you`}
+                      </Text>
+                    ) : null}
                     {mine ? (
                       <Text style={styles.meta}>
                         Downloading… {active.total ? Math.min(100, Math.round((active.bytes / active.total) * 100)) : 0}%
@@ -190,6 +216,8 @@ const styles = StyleSheet.create({
   button: { backgroundColor: "#10B981", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
   disabled: { opacity: 0.5 },
   buttonText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  link2: { color: "#3B82F6", fontWeight: "600", fontSize: 14, marginTop: 12 },
+  near: { color: "#059669", fontSize: 12, fontWeight: "700", marginTop: 2 },
   error: { marginTop: 12, color: "#B91C1C", fontSize: 13, lineHeight: 18 },
   footnote: { color: "#64748B", fontSize: 12, lineHeight: 17 },
 });
