@@ -375,6 +375,8 @@ For detailed API documentation, see [docs/api-endpoints.md](docs/api-endpoints.m
 
 For directions that work with no internet (offline road maps), see [docs/OFFLINE_MAPS.md](docs/OFFLINE_MAPS.md).
 
+To hand a build to other people (signing, versions, what to tell testers), see [docs/RELEASING.md](docs/RELEASING.md).
+
 To test the mesh on real phones (BLE cannot be tested on simulators or in CI), see [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md).
 
 ## 📁 Project Structure

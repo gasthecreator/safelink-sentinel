@@ -69,6 +69,30 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
 
+// ---- release signing -------------------------------------------------------------------------
+// A release build is signed with YOUR private key, read from android/keystore.properties (never
+// committed; see docs/RELEASING.md) or from SAFELINK_KEYSTORE_* environment variables (CI). Without
+// either, the build still works but is signed with the public debug key and says so: fine for testing,
+// never for handing to anyone. Pass -PrequireReleaseKey=true to make that a hard error.
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file("keystore.properties")
+if (keystorePropsFile.exists()) keystorePropsFile.withInputStream { keystoreProps.load(it) }
+def signingValue = { String prop, String envName -> System.getenv(envName) ?: keystoreProps.getProperty(prop) }
+def releaseStoreFile = signingValue("storeFile", "SAFELINK_KEYSTORE_FILE")
+def releaseStorePassword = signingValue("storePassword", "SAFELINK_KEYSTORE_PASSWORD")
+def releaseKeyAlias = signingValue("keyAlias", "SAFELINK_KEY_ALIAS")
+def releaseKeyPassword = signingValue("keyPassword", "SAFELINK_KEY_PASSWORD")
+def hasReleaseKey = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+if (!hasReleaseKey && project.hasProperty("requireReleaseKey")) {
+    throw new GradleException("No release signing key: create android/keystore.properties (see docs/RELEASING.md) or set SAFELINK_KEYSTORE_FILE, SAFELINK_KEYSTORE_PASSWORD, SAFELINK_KEY_ALIAS and SAFELINK_KEY_PASSWORD.")
+}
+if (!hasReleaseKey) {
+    logger.warn("WARNING: no release signing key found; the release build is signed with the PUBLIC DEBUG key. Do not distribute it.")
+}
+// versionName follows app/package.json; versionCode must go up with every release you hand out
+def appVersionName = new groovy.json.JsonSlurper().parse(file("../../package.json")).version
+def appVersionCode = (System.getenv("SAFELINK_VERSION_CODE") ?: project.findProperty("safelinkVersionCode") ?: "1") as int
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -79,8 +103,8 @@ android {
         applicationId "com.safelink.mesh"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
     }
     signingConfigs {
         debug {
@@ -89,15 +113,21 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasReleaseKey) {
+            release {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig hasReleaseKey ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
