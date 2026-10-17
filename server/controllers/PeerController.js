@@ -1,5 +1,6 @@
 // server/controllers/PeerController.js
 const PeerModel = require("../models/PeerModel");
+const validators = require("../utils/validators");
 
 async function list(req, res) {
   try {
@@ -49,17 +50,10 @@ async function getById(req, res) {
 
 async function register(req, res) {
   try {
-    const peer = req.body;
-    
-    // Validate required fields
-    if (!peer.id) {
-      return res.status(400).json({
-        error: "Missing required field: id",
-        message: "Peer must include an 'id' field",
-      });
-    }
-    
-    const savedPeer = await PeerModel.upsert(peer);
+    const checked = validators.peer(req.body);
+    if (!checked.ok) return res.status(400).json({ error: checked.error, message: checked.message });
+
+    const savedPeer = await PeerModel.upsert(checked.value);
     
     console.log(`[SafeLink][PeerController] ✅ Peer registered/updated: ${savedPeer.id}`);
     

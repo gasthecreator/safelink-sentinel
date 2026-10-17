@@ -1,27 +1,14 @@
 // server/controllers/HelpRequestController.js
 const HelpRequestModel = require("../models/HelpRequestModel");
+const validators = require("../utils/validators");
+const v = require("../utils/validate");
 
 async function createHelpRequest(req, res) {
   try {
-    const request = req.body;
+    const checked = validators.helpRequest(req.body);
+    if (!checked.ok) return res.status(400).json({ error: checked.error, message: checked.message });
 
-    // Validate required fields
-    if (!request.message) {
-      return res.status(400).json({
-        error: "Missing required field: message",
-        message: "Help request must include a message",
-      });
-    }
-
-    // Validate location (either coordinates or address)
-    if (!request.latitude || !request.longitude) {
-      return res.status(400).json({
-        error: "Missing location",
-        message: "Help request must include latitude and longitude",
-      });
-    }
-
-    const savedRequest = await HelpRequestModel.add(request);
+    const savedRequest = await HelpRequestModel.add(checked.value);
 
     console.log(
       `[SafeLink][HelpRequestController] ✅ Help request created: ${savedRequest.id} - ${savedRequest.natureOfHelp}`
@@ -43,8 +30,8 @@ async function createHelpRequest(req, res) {
 
 async function getAllHelpRequests(req, res) {
   try {
-    const status = req.query.status; // Optional filter by status
-    const limit = parseInt(req.query.limit) || 100;
+    const status = v.oneOf(req.query.status, validators.HELP_STATUSES); // Optional filter by status
+    const limit = v.limit(req.query.limit, 100, 500);
 
     let requests;
 
@@ -130,14 +117,9 @@ async function getHelpRequestById(req, res) {
 async function updateRequestStatus(req, res) {
   try {
     const { id } = req.params;
-    const { status } = req.body;
-
-    if (!status) {
-      return res.status(400).json({
-        error: "Missing status",
-        message: "Must provide a status to update",
-      });
-    }
+    const checked = validators.helpStatus(req.body);
+    if (!checked.ok) return res.status(400).json({ error: checked.error, message: checked.message });
+    const status = checked.value;
 
     const request = await HelpRequestModel.updateStatus(id, status);
 

@@ -1,31 +1,14 @@
 // server/controllers/RescueController.js
 const RescueModel = require("../models/RescueModel");
+const validators = require("../utils/validators");
+const v = require("../utils/validate");
 
 async function logRescueEvent(req, res) {
   try {
-    const rescue = req.body;
+    const checked = validators.rescueEvent(req.body);
+    if (!checked.ok) return res.status(400).json({ error: checked.error, message: checked.message });
 
-    // Validate required fields
-    if (!rescue.type) {
-      return res.status(400).json({
-        error: "Missing required field: type",
-        message: "Rescue event must include 'type' field (ACCEPT or ARRIVED)",
-      });
-    }
-
-    if (!rescue.alertId) {
-      return res.status(400).json({
-        error: "Missing required field: alertId",
-        message: "Rescue event must include 'alertId' field",
-      });
-    }
-
-    // Ensure timestamp
-    if (!rescue.timestamp) {
-      rescue.timestamp = new Date().toISOString();
-    }
-
-    const savedRescue = await RescueModel.add(rescue);
+    const savedRescue = await RescueModel.add(checked.value);
 
     console.log(
       `[SafeLink][RescueController] ✅ Rescue event logged: ${savedRescue.type} for alert ${savedRescue.alertId}`
@@ -60,9 +43,9 @@ async function getRescueStats(req, res) {
 
 async function getAllRescues(req, res) {
   try {
-    const limit = parseInt(req.query.limit) || 100;
-    const type = req.query.type; // Optional filter by type
-    const alertId = req.query.alertId; // Optional filter by alertId
+    const limit = v.limit(req.query.limit, 100, 500);
+    const type = v.oneOf(req.query.type, validators.RESCUE_TYPES); // Optional filter by type
+    const alertId = v.text(req.query.alertId, 128); // Optional filter by alertId
 
     let rescues;
 

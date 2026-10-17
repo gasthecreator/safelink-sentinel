@@ -1,119 +1,68 @@
 // server/routes/locationUpdates.js
+// "I am safe / I need help" check-ins with a position, shown on the dashboard map.
 
 const express = require("express");
-const router = express.Router();
-const fs = require("fs").promises;
+const fs = require("fs");
 const path = require("path");
+const router = express.Router();
+const { dataFile } = require("../utils/dataPath");
+const { writeJsonAtomic } = require("../utils/atomicFile");
+const validators = require("../utils/validators");
+const v = require("../utils/validate");
 
-const DATA_FILE = path.join(__dirname, "../data/locationUpdates.json");
+const DATA_FILE = dataFile("locationUpdates.json", path.join(__dirname, "../data"));
+const MAX_RECORDS = 5000;
+const MAX_AGE_MS = 14 * 24 * 3600 * 1000; // a check-in older than two weeks is not news
 
-// Ensure data file exists
-async function ensureDataFile() {
+function load() {
   try {
-    await fs.access(DATA_FILE);
+    const parsed = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    await fs.writeFile(DATA_FILE, JSON.stringify([], null, 2));
+    return [];
   }
 }
 
-// Get all location updates
-router.get("/", async (req, res) => {
-  try {
-    await ensureDataFile();
-    const data = await fs.readFile(DATA_FILE, "utf8");
-    const updates = JSON.parse(data);
-    
-    // Filter by status if provided
-    const status = req.query.status;
-    const filtered = status && status !== "all" 
-      ? updates.filter((u) => u.status === status)
-      : updates;
-    
-    // Sort by timestamp (newest first)
-    filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    
-    res.json(filtered);
-  } catch (error) {
-    console.error("Error fetching location updates:", error);
-    res.status(500).json({ error: "Failed to fetch location updates" });
-  }
+// Reading, adding and saving happen with no pause between them (nothing here waits), so two requests
+// cannot both read the old list and the second overwrite the first.
+function add(update) {
+  const now = Date.now();
+  const all = load().filter((u) => now - Date.parse(u.timestamp) < MAX_AGE_MS);
+  all.push(update);
+  writeJsonAtomic(DATA_FILE, all.length > MAX_RECORDS ? all.slice(-MAX_RECORDS) : all);
+}
+
+router.get("/", (req, res) => {
+  const status = typeof req.query.status === "string" ? req.query.status : "all";
+  const updates = load().filter((u) => status === "all" || u.status === status);
+  updates.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  res.json(updates.slice(0, v.limit(req.query.limit, 500, 1000)));
 });
 
-// Create a new location update
-router.post("/", async (req, res) => {
-  try {
-    await ensureDataFile();
-    const data = await fs.readFile(DATA_FILE, "utf8");
-    const updates = JSON.parse(data);
-    
-    const update = {
-      id: `update-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      latitude: req.body.latitude,
-      longitude: req.body.longitude,
-      status: req.body.status || "safe",
-      message: req.body.message || "",
-      address: req.body.address || "Location detected",
-      timestamp: req.body.timestamp || new Date().toISOString(),
-      reporter: req.body.reporter || "Anonymous",
-    };
-    
-    updates.push(update);
-    await fs.writeFile(DATA_FILE, JSON.stringify(updates, null, 2));
-    
-    res.status(201).json(update);
-  } catch (error) {
-    console.error("Error creating location update:", error);
-    res.status(500).json({ error: "Failed to create location update" });
-  }
+router.post("/", (req, res) => {
+  const checked = validators.locationUpdate(req.body);
+  if (!checked.ok) return res.status(400).json({ error: checked.error, message: checked.message });
+  const update = { id: `update-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, ...checked.value };
+  add(update);
+  res.status(201).json(update);
 });
 
-// Get location updates by location (within radius)
-router.get("/nearby", async (req, res) => {
-  try {
-    const { lat, lon, radius = 5 } = req.query; // radius in km
-    
-    if (!lat || !lon) {
-      return res.status(400).json({ error: "Latitude and longitude required" });
-    }
-    
-    await ensureDataFile();
-    const data = await fs.readFile(DATA_FILE, "utf8");
-    const updates = JSON.parse(data);
-    
-    // Filter by distance
-    const nearby = updates.filter((update) => {
-      if (!update.latitude || !update.longitude) return false;
-      
-      const distance = calculateDistance(
-        parseFloat(lat),
-        parseFloat(lon),
-        update.latitude,
-        update.longitude
-      );
-      
-      return distance <= parseFloat(radius);
-    });
-    
-    res.json(nearby);
-  } catch (error) {
-    console.error("Error fetching nearby updates:", error);
-    res.status(500).json({ error: "Failed to fetch nearby updates" });
-  }
+router.get("/nearby", (req, res) => {
+  const lat = v.latitude(req.query.lat);
+  const lon = v.longitude(req.query.lon);
+  if (lat === null || lon === null) return res.status(400).json({ error: "Latitude and longitude required" });
+  const radius = v.number(req.query.radius === undefined ? 5 : req.query.radius, 0.1, 500) ?? 5; // km
+  const nearby = load().filter((u) => Number.isFinite(u.latitude) && Number.isFinite(u.longitude) && calculateDistance(lat, lon, u.latitude, u.longitude) <= radius);
+  res.json(nearby.slice(0, 1000));
 });
 
-// Helper function to calculate distance between two coordinates (Haversine formula)
+// Haversine distance in km
 function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth's radius in km
+  const R = 6371;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function toRad(degrees) {
@@ -121,4 +70,3 @@ function toRad(degrees) {
 }
 
 module.exports = router;
-

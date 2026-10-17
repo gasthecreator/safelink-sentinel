@@ -1,8 +1,11 @@
 // server/models/PeerModel.js
 const fs = require("fs");
 const path = require("path");
+const { dataFile } = require("../utils/dataPath");
+const { writeJsonAtomic } = require("../utils/atomicFile");
 
-const DB_PATH = path.join(process.cwd(), "data", "peers.json");
+const DB_PATH = dataFile("peers.json", path.join(process.cwd(), "data"));
+const MAX_RECORDS = 2000;
 const DATA_DIR = path.dirname(DB_PATH);
 
 // Ensure data directory exists
@@ -23,7 +26,10 @@ function load() {
 }
 
 function save(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+  if (data.peers && data.peers.length > MAX_RECORDS) {
+    data.peers = [...data.peers].sort((a, b) => String(a.lastSeen || "").localeCompare(String(b.lastSeen || ""))).slice(-MAX_RECORDS);
+  }
+  writeJsonAtomic(DB_PATH, data);
 }
 
 module.exports = {

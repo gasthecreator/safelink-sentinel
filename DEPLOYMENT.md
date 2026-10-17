@@ -145,9 +145,14 @@ NODE_ENV=production
 PORT=10000
 GEMINI_API_KEY=your_key_here (optional)
 GOOGLE_MAPS_KEY=your_key_here (optional)
-GOOGLE_API_KEY=your_key_here (optional)
-FRONTEND_URL=https://safelink-dashboard.onrender.com
+GOOGLE_API_KEY=your_key_here (optional; used by the server only, never sent to browsers)
+FRONTEND_URL=https://safelink-dashboard.onrender.com   # the ONLY browser origin(s) allowed to call the API
+ADMIN_TOKEN=at-least-16-random-characters              # without it, the admin-only actions are off
 ```
+
+`GOOGLE_MAPS_KEY` is sent to every browser that opens the shelter map, so it must be a key used for nothing
+else, restricted in Google Cloud to your dashboard's address (HTTP referrer) and to the Maps APIs. See
+[docs/SECURITY.md](docs/SECURITY.md) for what the server does and does not protect.
 
 ### Frontend (`safelink-dashboard`)
 ```
