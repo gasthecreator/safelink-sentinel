@@ -410,7 +410,9 @@ export default function FindShelter() {
         stream.getTracks().forEach((t) => t.stop());
         try {
           audioContext.close();
-        } catch (e) {}
+        } catch (e) {
+          // the audio context may already be closed
+        }
 
         if (chunks.length === 0) {
           setError("No audio recorded. Please try again.");

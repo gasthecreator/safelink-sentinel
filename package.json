@@ -12,7 +12,10 @@
   "scripts": {
     "start": "scripts\\start.bat",
     "stop": "scripts\\stop.bat",
-    "start:app": "scripts\\start-app.bat"
+    "start:app": "scripts\\start-app.bat",
+    "lint": "eslint . --ext .js,.jsx",
+    "lint:fix": "eslint . --ext .js,.jsx --fix",
+    "format:changed": "node scripts/format-changed.js"
   },
   "keywords": [
     "mesh-network",
@@ -23,5 +26,11 @@
     "emergency-communications"
   ],
   "author": "SafeLink Team",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@react-native/eslint-config": "^0.73.2",
+    "eslint": "^8.57.1",
+    "prettier": "^2.8.8",
+    "typescript": "^5.3.3"
+  }
 }
