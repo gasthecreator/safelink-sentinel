@@ -405,6 +405,9 @@ export default function MeshHomeScreen({ navigation }) {
             <TouchableOpacity onPress={() => navigation.navigate("OfflineMaps")}>
               <Text style={styles.diagnosticsLink}>Offline maps</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
+              <Text style={styles.diagnosticsLink}>Settings</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate("Diagnostics")}>
               <Text style={styles.diagnosticsLink}>Diagnostics</Text>
             </TouchableOpacity>

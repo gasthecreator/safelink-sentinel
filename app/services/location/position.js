@@ -7,6 +7,8 @@
 //              place the sender chose) or "manual" (typed in by hand); null if unknown
 //   label      the place's name, for source "place"
 // Positions arrive from other people's phones, so everything is validated before use.
+import { formatAccuracy } from "../units/units.js";
+
 
 const MAX_FUTURE_MS = 5 * 60 * 1000;
 const MAX_PAST_MS = 30 * 24 * 60 * 60 * 1000;
@@ -91,7 +93,7 @@ function ageLabel(ms) {
 
 function accuracyLabel(accuracyM) {
   if (accuracyM == null) return null;
-  return accuracyM >= 1000 ? `±${(accuracyM / 1000).toFixed(1)} km` : `±${accuracyM} m`;
+  return formatAccuracy(accuracyM);
 }
 
 /** Human-readable pieces for showing a position. */

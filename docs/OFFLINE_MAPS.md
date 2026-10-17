@@ -188,7 +188,7 @@ A phone only learns of a retirement when it next checks for maps.
   onto Main Street" when it is close, with earlier warnings when driving. Live directions carry on with the phone locked or
   another app in front: on Android a notification ("SafeLink directions") is shown while they run, which is what
   lets Android keep using GPS; on iOS the blue location indicator appears. Both stop when you press Stop or
-  leave the screen. Nothing tracks you outside live directions. Distances are spoken in meters and kilometres. Without live mode the route is worked
+  leave the screen. Nothing tracks you outside live directions. Distances (shown and spoken) use miles and feet or kilometres and metres: Settings, Distances, "Automatic" follows the phone's region (miles in the US, Liberia, Myanmar and the UK). Without live mode the route is worked
   out once; use **Try GPS again** to recalculate.
 
 ## Credit

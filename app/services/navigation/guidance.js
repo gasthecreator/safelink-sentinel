@@ -6,6 +6,7 @@
 // is plain logic here so it can be tested without a phone.
 
 import { NativeModules } from "react-native";
+import { spokenDistance } from "../units/units.js";
 
 const native = NativeModules.SafeLinkGuidance || null;
 
@@ -77,14 +78,7 @@ export async function isSpeechAvailable() {
 
 // ---- what to say ----
 
-/** "60 meters", "250 meters", "1.5 kilometres": rounded the way a person would say it. */
-export function spokenDistance(m) {
-  if (!(m >= 0)) return "";
-  if (m < 100) return `${Math.max(10, Math.round(m / 10) * 10)} meters`;
-  if (m < 1000) return `${Math.round(m / 50) * 50} meters`;
-  const km = Math.round(m / 100) / 10;
-  return `${km} kilometre${km === 1 ? "" : "s"}`;
-}
+export { spokenDistance };
 
 const lowerFirst = (s) => (s ? s[0].toLowerCase() + s.slice(1) : s);
 const sentence = (s) => (/[.!?]$/.test(s) ? s : `${s}.`);
@@ -93,7 +87,7 @@ const sentence = (s) => (/[.!?]$/.test(s) ? s : `${s}.`);
  * Decides what to say as progress comes in. Each instruction is spoken at most twice (once when it
  * is coming up, once when it is close) and the arrival once. The distances depend on how fast you move.
  */
-export function createAnnouncer({ mode = "walk" } = {}) {
+export function createAnnouncer({ mode = "walk", units } = {}) {
   const driving = mode === "drive";
   const FAR_M = driving ? 300 : 80;
   const NEAR_M = driving ? 60 : 20;
@@ -130,14 +124,14 @@ export function createAnnouncer({ mode = "walk" } = {}) {
         if (!once("end")) return null;
         const t = progress.toTarget;
         return t
-          ? `You have reached the end of the mapped road. They are about ${spokenDistance(t.distanceM)} ${t.direction} of here.`
+          ? `You have reached the end of the mapped road. They are about ${spokenDistance(t.distanceM, units)} ${t.direction} of here.`
           : "You have reached the end of the mapped road.";
       }
       const next = progress.next;
       if (!next || next.final) return null;
       if (next.inM <= NEAR_M) return once(`${next.index}:near`) ? (spoken.add(`${next.index}:far`), sentence(next.text)) : null;
       if (next.inM <= FAR_M) {
-        return once(`${next.index}:far`) ? `In ${spokenDistance(next.inM)}, ${lowerFirst(sentence(next.text))}` : null;
+        return once(`${next.index}:far`) ? `In ${spokenDistance(next.inM, units)}, ${lowerFirst(sentence(next.text))}` : null;
       }
       return null;
     },

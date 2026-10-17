@@ -24,6 +24,8 @@ import {
 import RescueLogger from "../services/storage/RescueLogger.js";
 import AlertManager from "../services/mesh/AlertManager.js";
 import { describePosition, mapsUrl } from "../services/location/position.js";
+import { formatDistance } from "../services/units/units";
+import { useUnits } from "../services/units/UnitStore";
 
 const HELPER_ID = "device-volunteer"; // later: replace with real identity
 
@@ -34,6 +36,7 @@ const HELPER_ID = "device-volunteer"; // later: replace with real identity
 const SHOW_MAP_VIEW = false;
 
 export default function AlertDetailScreen() {
+  useUnits(); // re-render if the units setting changes
   const route = useRoute();
   const navigation = useNavigation();
   const { alert } = route.params;
@@ -288,7 +291,7 @@ export default function AlertDetailScreen() {
 
   const etaLabel = etaMinutes != null ? formatETAMinutes(etaMinutes) : "N/A";
   const distanceLabel =
-    distance != null ? `${distance.toFixed(1)} km away` : "Distance unknown";
+    distance != null ? `${formatDistance(distance * 1000)} away` : "Distance unknown";
 
   // Determine map region to fit both locations
   const mapRegion = (() => {
