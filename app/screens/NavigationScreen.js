@@ -66,7 +66,7 @@ export default function NavigationScreen() {
   const [progress, setProgress] = useState(null);
   const [liveNote, setLiveNote] = useState(null);
   const [voiceOn, setVoiceOn] = useState(true);
-  const [voiceAvailable, setVoiceAvailable] = useState(false);
+  const [voiceAvailable, setVoiceAvailable] = useState(null); // null until the phone has answered
   const voiceRef = useRef(true);
   const announcer = useRef(createAnnouncer({ mode: "walk" }));
   const rerouted = useRef(false);
@@ -283,7 +283,7 @@ export default function NavigationScreen() {
         <Text style={styles.back}>{t("← Back")}</Text>
       </TouchableOpacity>
       <Text accessibilityRole="header" style={styles.title}>{alert.title ? t("Directions to \"{name}\"", { name: alert.title }) : t("Directions to them")}</Text>
-      {alert.subtitle ? <Text style={styles.where}>{alert.subtitle}</Text> : null}
+      {alert.subtitle ? <Text style={styles.where}>{t(alert.subtitle)}</Text> : null}
       {alert.where ? <Text style={styles.where}>{t("They said: {where}", { where: alert.where })}</Text> : null}
       <Text style={styles.note}>
         {t("Worked out on this phone from an offline map, with no internet. It follows the roads in the map and cannot know about closures, damage or flooding.")}
@@ -420,7 +420,7 @@ export default function NavigationScreen() {
             </Text>
           ) : null}
           {live ? (
-            <LivePanel progress={progress} note={liveNote} onStop={stopLive} voice={voiceAvailable ? { on: voiceOn, toggle: toggleVoice } : null} />
+            <LivePanel progress={progress} note={liveNote} onStop={stopLive} voice={voiceAvailable ? { on: voiceOn, toggle: toggleVoice } : null} noVoice={voiceAvailable === false} />
           ) : source === "gps" && gps.state === "ok" ? (
             <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, { marginBottom: 12 }]} onPress={startLive}>
               <Text style={styles.buttonText}>{t("Start live directions")}</Text>
@@ -461,7 +461,7 @@ export default function NavigationScreen() {
   );
 }
 
-const LivePanel = ({ progress, note, onStop, voice }) => (
+const LivePanel = ({ progress, note, onStop, voice, noVoice }) => (
   <View style={styles.live}>
     {progress && progress.arrived ? (
       <Text style={styles.liveBig}>{t("You have arrived")}</Text>
@@ -491,6 +491,8 @@ const LivePanel = ({ progress, note, onStop, voice }) => (
       <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ checked: voice.on }} accessibilityLabel={voice.on ? t("Spoken directions are on. Double tap to turn off.") : t("Spoken directions are off. Double tap to turn on.")} onPress={voice.toggle}>
         <Text style={styles.link}>{voice.on ? t("Voice on: tap to turn off") : t("Voice off: tap to turn on")}</Text>
       </TouchableOpacity>
+    ) : noVoice ? (
+      <Text style={styles.liveSmall}>{t("This phone has no voice for this language, so the directions stay on screen only.")}</Text>
     ) : null}
     <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, styles.stop]} onPress={onStop}>
       <Text style={styles.buttonText}>{t("Stop")}</Text>

@@ -83,12 +83,29 @@ describe("the native module is optional", () => {
     jest.resetModules();
     const calls = [];
     jest.doMock("react-native", () => ({
-      NativeModules: { SafeLinkGuidance: { keepAwake: (v) => calls.push(["keepAwake", v]), speak: (t) => calls.push(["speak", t]), stopSpeaking: () => calls.push(["stop"]), startBackground: () => calls.push(["bg", "start"]), stopBackground: () => calls.push(["bg", "stop"]), isSpeechAvailable: async () => true } },
+      NativeModules: { SafeLinkGuidance: { keepAwake: (v) => calls.push(["keepAwake", v]), speak: (t, lang) => calls.push(["speak", t, lang]), stopSpeaking: () => calls.push(["stop"]), startBackground: (...texts) => calls.push(["bg", "start", ...texts]), stopBackground: () => calls.push(["bg", "stop"]), isSpeechAvailable: async (lang) => { calls.push(["avail", lang]); return true; } } },
     }));
     const g = require("../services/navigation/guidance.js");
     g.keepAwake(true); g.speak("Turn left."); g.speak(""); g.stopSpeaking(); g.startBackground(); g.stopBackground();
-    expect(calls).toEqual([["keepAwake", true], ["speak", "Turn left."], ["stop"], ["bg", "start"], ["bg", "stop"]]);
+    expect(calls).toEqual([
+      ["keepAwake", true], ["speak", "Turn left.", "en"], ["stop"],
+      ["bg", "start", "SafeLink directions", "Following your route. Tap to open.", "Live directions", "Shown while SafeLink is following your route"],
+      ["bg", "stop"],
+    ]);
     expect(await g.isSpeechAvailable()).toBe(true);
+    expect(calls[calls.length - 1]).toEqual(["avail", "en"]);
+
+    // the phone is told the APP's language (speech and the notification), whatever the phone's own language is
+    const { setLanguage } = require("../services/i18n/i18n.js");
+    setLanguage("es");
+    calls.length = 0;
+    g.speak("Gira a la izquierda."); g.startBackground(); await g.isSpeechAvailable();
+    expect(calls).toEqual([
+      ["speak", "Gira a la izquierda.", "es"],
+      ["bg", "start", "Indicaciones de SafeLink", "Siguiendo tu ruta. Toca para abrir.", "Indicaciones en vivo", "Se muestra mientras SafeLink sigue tu ruta"],
+      ["avail", "es"],
+    ]);
+    setLanguage("en");
     jest.resetModules();
     jest.doMock("react-native", () => ({ NativeModules: { SafeLinkGuidance: { speak() { throw new Error("boom"); }, keepAwake() { throw new Error("boom"); } } } }));
     const bad = require("../services/navigation/guidance.js");

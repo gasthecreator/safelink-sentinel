@@ -84,7 +84,7 @@ describe("the Spanish catalog is complete and consistent", () => {
   });
   test("no translation is just the English copied back (apart from names and abbreviations)", () => {
     const same = Object.entries(es).filter(([k, v]) => v === k).map(([k]) => k);
-    expect(same.sort()).toEqual(["GPS", "SafeLink Mesh", "normal", "ID: {id}...", "Error", "Hospital"].sort());
+    expect(same.sort()).toEqual(["GPS", "SafeLink Mesh", "normal", "ID: {id}...", "Error", "Hospital", "no"].sort());
   });
   test("every language offered has a catalog", () => {
     for (const l of LANGUAGES) expect(catalogFor(l.code)).toBeTruthy();

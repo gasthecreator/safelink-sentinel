@@ -26,13 +26,13 @@ import {
   formatEntry,
   toText,
 } from "../services/diagnostics/LogBuffer";
-import { t } from "../services/i18n/i18n";
+import { t, N_ } from "../services/i18n/i18n";
 import { useLanguage } from "../services/i18n/LanguageStore";
 
 // small buttons stay easy to hit: the touch area is 10 points bigger on every side
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
-const yesNo = (value) => (value ? "yes" : "no");
+const yesNo = (value) => (value ? N_("yes") : N_("no"));
 
 async function collectStatus() {
   const peers = NodeDiscovery.getPeers();
@@ -42,22 +42,22 @@ async function collectStatus() {
     deviceId = (await IdentityManager.getDeviceId()).slice(0, 12);
   } catch {}
   return [
-    ["Platform", `${Platform.OS} ${Platform.Version}`],
-    ["Device ID", deviceId],
-    ["Keys in secure storage", yesNo(isSecure)],
-    ["BLE stack present", yesNo(NodeDiscovery.bleAvailable)],
-    ["Bluetooth ready (permissions + powered on)", yesNo(NodeDiscovery.ready)],
-    ["Scanning now", yesNo(NodeDiscovery.scanning)],
-    ["Peripheral module linked", yesNo(BlePeripheral.linked)],
+    [N_("Platform"), `${Platform.OS} ${Platform.Version}`],
+    [N_("Device ID"), deviceId],
+    [N_("Keys in secure storage"), yesNo(isSecure)],
+    [N_("BLE stack present"), yesNo(NodeDiscovery.bleAvailable)],
+    [N_("Bluetooth ready (permissions + powered on)"), yesNo(NodeDiscovery.ready)],
+    [N_("Scanning now"), yesNo(NodeDiscovery.scanning)],
+    [N_("Peripheral module linked"), yesNo(BlePeripheral.linked)],
     [
-      "Advertising",
+      N_("Advertising"),
       `${BlePeripheral.state}${BlePeripheral.detail ? ` (${BlePeripheral.detail})` : ""}`,
     ],
-    ["Nearby devices", String(peers.length)],
+    [N_("Nearby devices"), String(peers.length)],
     ...peers.map((p) => [`  ${p.name}`, `${p.id.slice(0, 8)}  ${p.rssi} dBm`]),
-    ["Messages waiting for someone in range", String(stats.ownWaiting)],
-    ["Messages delivered to at least one device", String(stats.ownDelivered)],
-    ["Messages being relayed for others", String(stats.relaying)],
+    [N_("Messages waiting for someone in range"), String(stats.ownWaiting)],
+    [N_("Messages delivered to at least one device"), String(stats.ownDelivered)],
+    [N_("Messages being relayed for others"), String(stats.relaying)],
   ];
 }
 
@@ -100,15 +100,15 @@ export default function DiagnosticsScreen() {
       <View style={styles.card}>
         {status.map(([label, value], i) => (
           <View key={`${label}-${i}`} style={styles.row}>
-            <Text style={styles.label}>{label}</Text>
-            <Text style={styles.value}>{value}</Text>
+            <Text style={styles.label}>{t(label)}</Text>
+            <Text style={styles.value}>{t(value)}</Text>
           </View>
         ))}
       </View>
 
       <View style={styles.buttons}>
         <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={styles.button} onPress={shareLogs}>
-          <Text style={styles.buttonText}>Share status + log</Text>
+          <Text style={styles.buttonText}>{t("Share status and log")}</Text>
         </TouchableOpacity>
         <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, styles.secondary]} onPress={clearEntries}>
           <Text style={[styles.buttonText, styles.secondaryText]}>{t("Clear log")}</Text>

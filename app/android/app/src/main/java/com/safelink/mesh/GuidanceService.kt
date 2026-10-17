@@ -23,10 +23,15 @@ class GuidanceService : Service() {
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    // the words come from the app in the language the person chose (the English here is only a fallback)
+    val title = intent?.getStringExtra(EXTRA_TITLE) ?: "SafeLink directions"
+    val text = intent?.getStringExtra(EXTRA_TEXT) ?: "Following your route. Tap to open."
+    val channelName = intent?.getStringExtra(EXTRA_CHANNEL_NAME) ?: "Live directions"
+    val channelDescription = intent?.getStringExtra(EXTRA_CHANNEL_DESCRIPTION) ?: "Shown while SafeLink is following your route"
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       manager.createNotificationChannel(
-          NotificationChannel(CHANNEL_ID, "Live directions", NotificationManager.IMPORTANCE_LOW).apply {
-            description = "Shown while SafeLink is following your route"
+          NotificationChannel(CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW).apply {
+            description = channelDescription
             setShowBadge(false)
           })
     }
@@ -36,8 +41,8 @@ class GuidanceService : Service() {
             this, 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     val notification: Notification =
         NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("SafeLink directions")
-            .setContentText("Following your route. Tap to open.")
+            .setContentTitle(title)
+            .setContentText(text)
             .setSmallIcon(applicationInfo.icon)
             .setOngoing(true)
             .setContentIntent(tap)
@@ -54,5 +59,9 @@ class GuidanceService : Service() {
   companion object {
     private const val CHANNEL_ID = "safelink_guidance"
     private const val NOTIFICATION_ID = 4107
+    const val EXTRA_TITLE = "title"
+    const val EXTRA_TEXT = "text"
+    const val EXTRA_CHANNEL_NAME = "channelName"
+    const val EXTRA_CHANNEL_DESCRIPTION = "channelDescription"
   }
 }

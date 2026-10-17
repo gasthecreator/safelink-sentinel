@@ -62,9 +62,9 @@ function unwrappedIn(file) {
   let m;
   while ((m = node.exec(src))) {
     const text = m[1].replace(/\s+/g, " ").trim();
-    if (!hasWords(text) || /^[=>-]$/.test(text) || /=>/.test(text) || /^\w+\s*[=:(]/.test(text)) continue;
+    if (!hasWords(text) || /^[=>-]$/.test(text) || /=>/.test(text) || /^\w+\s*[=:]/.test(text) || /^\w+\(/.test(text)) continue;
     // skip code: arrow functions, generics, comparisons that merely look like text between < and >
-    if (/[;=]|=>|\breturn\b|\bconst\b|\bfunction\b|\|\||&&|\s\+\s|^\(\w+$|^\)\s*:/.test(text)) continue;
+    if (/[;=]|=>|\breturn\b|\bconst\b|\bfunction\b|\|\||&&|^\(\w+$|^\)\s*:/.test(text)) continue;
     problems.push({ file, line: line(m.index), kind: "text", text });
   }
   // words mixed in with {values}: "{count} connected", "{n} min ago" ... (text after a } or before a {, inside a tag)
@@ -80,7 +80,7 @@ function unwrappedIn(file) {
     if (!hasWords(text) || /[;=]|=>|\?|:\s*\(|\|\||&&|^[()]/.test(text)) continue;
     problems.push({ file, line: line(m.index), kind: "mixed", text });
   }
-  const attr = /\b(placeholder|accessibilityLabel|accessibilityHint)="([^"]*[A-Za-z]{3,}[^"]*)"/g;
+  const attr = /\b(placeholder|accessibilityLabel|accessibilityHint|title|body|label|locationLabel|address|time|subtitle|message|text|description|hint|buttonLabel)="([^"]*[A-Za-z]{3,}[^"]*)"/g;
   while ((m = attr.exec(src))) problems.push({ file, line: line(m.index), kind: attr.source ? m[1] : "attr", text: m[2] });
   const alert = /Alert\.alert\(\s*"([^"]*[A-Za-z]{3,}[^"]*)"/g;
   while ((m = alert.exec(src))) problems.push({ file, line: line(m.index), kind: "alert", text: m[1] });
