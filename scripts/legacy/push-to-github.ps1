@@ -1,3 +1,5 @@
+# LEGACY: written for the original hackathon repository (BE-Hackathon-2025/GRAM-TEAMB). This repository's remote is
+# gasthecreator/safelink-sentinel; use plain `git push`. Kept only for history.
 # Automated GitHub Push Script for SafeLink
 # This script will attempt to push your code to GitHub
 

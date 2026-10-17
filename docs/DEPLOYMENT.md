@@ -152,12 +152,16 @@ ADMIN_TOKEN=at-least-16-random-characters              # without it, the admin-o
 
 `GOOGLE_MAPS_KEY` is sent to every browser that opens the shelter map, so it must be a key used for nothing
 else, restricted in Google Cloud to your dashboard's address (HTTP referrer) and to the Maps APIs. See
-[docs/SECURITY.md](docs/SECURITY.md) for what the server does and does not protect.
+[SECURITY.md](SECURITY.md) for what the server does and does not protect.
 
 ### Frontend (`safelink-dashboard`)
 ```
 VITE_API_BASE_URL=https://safelink-api.onrender.com
 ```
+
+The Relief Feed page also uses your own Firebase project: set the `VITE_FIREBASE_*` variables listed in
+`safelink-dashboard/env.example` (Firebase console, Project settings, Your apps) and deploy `firestore.rules`
+with the Firebase CLI. The dashboard refuses to start without them.
 
 ## Using render.yaml (Alternative Method)
 
@@ -196,8 +200,3 @@ If you encounter issues:
 2. Check browser console (F12)
 3. Verify all environment variables are set
 4. Test API endpoints directly with curl/Postman
-
----
-
-**Deployment Status**: ✅ Ready for Render deployment
-

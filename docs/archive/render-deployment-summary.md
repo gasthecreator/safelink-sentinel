@@ -1,5 +1,7 @@
 # SafeLink Render Deployment Summary
 
+> **Archived working notes.** Kept for history; the current deployment guide is [docs/DEPLOYMENT.md](../DEPLOYMENT.md), and `render.yaml` is the source of truth for the service settings.
+
 ## ✅ Pre-Deployment Fixes Completed
 
 ### 1. API Configuration
