@@ -11,6 +11,7 @@
 
 import { loadPack } from "../navigation/pack.js";
 import { ID_PATTERN } from "./catalog.js";
+import { t } from "../i18n/i18n.js";
 
 export class PackError extends Error {
   constructor(code, message) {
@@ -110,8 +111,8 @@ export function createPackStore(getFs, { chunkBytes = DEFAULT_CHUNK_BYTES, retry
   async function fetchInto(entry, tmp, onProgress) {
     const report = (bytes) => onProgress && onProgress({ bytes, total: entry.sizeBytes });
     const fail = (err) => {
-      if (err && err.cancelled) throw new PackError("cancelled", "Download cancelled.");
-      throw new PackError("download", err && err.message ? `Download failed: ${err.message}` : "Download failed. Check the internet connection.");
+      if (err && err.cancelled) throw new PackError("cancelled", t("Download cancelled."));
+      throw new PackError("download", err && err.message ? t("Download failed: {reason}", { reason: err.message }) : t("Download failed. Check the internet connection."));
     };
     const single = async () => {
       await clearPartial();
@@ -253,8 +254,8 @@ export function createPackStore(getFs, { chunkBytes = DEFAULT_CHUNK_BYTES, retry
      */
     async install(entry, { onProgress } = {}) {
       await store.init();
-      if (current) throw new PackError("busy", "Another map is already downloading.");
-      if (!ID_PATTERN.test(entry.id)) throw new PackError("invalid", "That map has an invalid name.");
+      if (current) throw new PackError("busy", t("Another map is already downloading."));
+      if (!ID_PATTERN.test(entry.id)) throw new PackError("invalid", t("That map has an invalid name."));
 
       const tmp = path(`${entry.id}-v${entry.version}.part`);
       const final = path(fileFor(entry.id, entry.version));
@@ -262,30 +263,30 @@ export function createPackStore(getFs, { chunkBytes = DEFAULT_CHUNK_BYTES, retry
       try {
         const free = await fs.freeBytes().catch(() => Infinity);
         if (free < entry.sizeBytes + SPACE_MARGIN) {
-          throw new PackError("no_space", `Not enough free space on this phone (this map needs ${(entry.sizeBytes / 1048576).toFixed(1)} MB).`);
+          throw new PackError("no_space", t("Not enough free space on this phone (this map needs {size} MB).", { size: (entry.sizeBytes / 1048576).toFixed(1) }));
         }
 
         await cleanup();
         await fetchInto(entry, tmp, onProgress);
 
         if ((await fs.size(tmp)) !== entry.sizeBytes) {
-          throw new PackError("size", "The downloaded map is not the size it should be, so it was not used.");
+          throw new PackError("size", t("The downloaded map is not the size it should be, so it was not used."));
         }
         if ((await fs.sha256(tmp)) !== entry.sha256) {
-          throw new PackError("hash", "The downloaded map does not match its checksum, so it was not used.");
+          throw new PackError("hash", t("The downloaded map does not match its checksum, so it was not used."));
         }
 
         let raw;
         try {
           raw = JSON.parse(await fs.readText(tmp));
         } catch {
-          throw new PackError("invalid", "The downloaded map could not be read, so it was not used.");
+          throw new PackError("invalid", t("The downloaded map could not be read, so it was not used."));
         }
         const loaded = loadPack(raw);
-        if (!loaded.ok) throw new PackError("invalid", `The downloaded map is not valid (${loaded.error}), so it was not used.`);
+        if (!loaded.ok) throw new PackError("invalid", t("The downloaded map is not valid ({reason}), so it was not used.", { reason: loaded.error }));
         // the area the catalog (which is signed) promised must be the area the file really covers
         if (!sameBbox(raw.bbox, entry.bbox)) {
-          throw new PackError("invalid", "The downloaded map covers a different area than promised, so it was not used.");
+          throw new PackError("invalid", t("The downloaded map covers a different area than promised, so it was not used."));
         }
 
         const old = manifest.packs[entry.id];
@@ -309,14 +310,14 @@ export function createPackStore(getFs, { chunkBytes = DEFAULT_CHUNK_BYTES, retry
           if (old) manifest.packs[entry.id] = old;
           else delete manifest.packs[entry.id];
           await fs.remove(final).catch(() => {});
-          throw new PackError("storage", `Could not save the map: ${err.message}`);
+          throw new PackError("storage", t("Could not save the map: {reason}", { reason: err.message }));
         }
         if (old && old.file !== manifest.packs[entry.id].file) await fs.remove(path(old.file)).catch(() => {});
         return manifest.packs[entry.id];
       } catch (err) {
         await cleanup();
         if (err instanceof PackError) throw err;
-        throw new PackError("storage", `Could not install the map: ${err && err.message ? err.message : err}`);
+        throw new PackError("storage", t("Could not install the map: {reason}", { reason: err && err.message ? err.message : String(err) }));
       } finally {
         current = null;
       }
@@ -336,13 +337,13 @@ export function createPackStore(getFs, { chunkBytes = DEFAULT_CHUNK_BYTES, retry
     async read(id) {
       await store.init();
       const entry = manifest.packs[id];
-      if (!entry) throw new PackError("invalid", "That map is not installed.");
+      if (!entry) throw new PackError("invalid", t("That map is not installed."));
       const p = path(entry.file);
-      if ((await fs.size(p)) !== entry.sizeBytes) throw new PackError("size", "The saved map is damaged. Delete it and download it again.");
+      if ((await fs.size(p)) !== entry.sizeBytes) throw new PackError("size", t("The saved map is damaged. Delete it and download it again."));
       try {
         return JSON.parse(await fs.readText(p));
       } catch {
-        throw new PackError("invalid", "The saved map is damaged. Delete it and download it again.");
+        throw new PackError("invalid", t("The saved map is damaged. Delete it and download it again."));
       }
     },
 

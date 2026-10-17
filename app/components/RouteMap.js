@@ -7,6 +7,7 @@ import React, { useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import Svg, { Line, Polyline, Circle, Text as SvgText } from "react-native-svg";
 import { projector, pickRoads, scaleBar, formatDistance } from "../services/navigation/mapView";
+import { t } from "../services/i18n/i18n";
 
 // small buttons stay easy to hit: the touch area is 10 points bigger on every side
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
@@ -37,7 +38,7 @@ export default function RouteMap({ graph, route, you, them, closures = [], width
         style={[styles.frame, { width, height }]}
         accessible
         accessibilityRole="image"
-        accessibilityLabel={route ? `Map of the route from you to them, ${formatDistance(route.distanceM)} long. The turn-by-turn directions below say the same in words.` : "Map of the roads around you and them."}
+        accessibilityLabel={route ? t("Map of the route from you to them, {distance} long. The turn-by-turn directions below say the same in words.", { distance: formatDistance(route.distanceM) }) : t("Map of the roads around you and them.")}
       >
         <Svg width={width} height={height}>
           {roads.map((r) => {
@@ -84,8 +85,8 @@ export default function RouteMap({ graph, route, you, them, closures = [], width
               </React.Fragment>
             );
           })}
-          {youXY ? <Marker at={youXY} color="#16A34A" label="You" /> : null}
-          {themXY ? <Marker at={themXY} color="#DC2626" label="Them" /> : null}
+          {youXY ? <Marker at={youXY} color="#16A34A" label={t("You")} /> : null}
+          {themXY ? <Marker at={themXY} color="#DC2626" label={t("Them")} /> : null}
           {/* north arrow and scale bar */}
           <SvgText x={width - 22} y={20} fontSize={12} fontWeight="bold" fill="#334155" textAnchor="middle">N ↑</SvgText>
           <Line x1={12} y1={height - 14} x2={12 + bar.pixels} y2={height - 14} stroke="#334155" strokeWidth={3} />
@@ -93,14 +94,14 @@ export default function RouteMap({ graph, route, you, them, closures = [], width
         </Svg>
       </View>
       <View style={styles.controls}>
-        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Zoom out" style={styles.btn} onPress={() => setZoom((z) => Math.max(0.5, z / 1.6))}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel={t("Zoom out")} style={styles.btn} onPress={() => setZoom((z) => Math.max(0.5, z / 1.6))}>
           <Text style={styles.btnText}>−</Text>
         </TouchableOpacity>
-        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Zoom in" style={styles.btn} onPress={() => setZoom((z) => Math.min(8, z * 1.6))}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel={t("Zoom in")} style={styles.btn} onPress={() => setZoom((z) => Math.min(8, z * 1.6))}>
           <Text style={styles.btnText}>+</Text>
         </TouchableOpacity>
-        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Fit the whole route on the map" style={styles.btn} onPress={() => setZoom(1)}>
-          <Text style={styles.btnText}>Fit</Text>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel={t("Fit the whole route on the map")} style={styles.btn} onPress={() => setZoom(1)}>
+          <Text style={styles.btnText}>{t("Fit")}</Text>
         </TouchableOpacity>
       </View>
     </View>

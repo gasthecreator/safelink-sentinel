@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, AccessibilityInfo } from "react-native";
 import * as Animatable from "react-native-animatable";
+import { t, tp } from "../services/i18n/i18n";
 
 export default function ConnectionStatus({ health, peersCount }) {
   // the status dot pulses for ever; people who asked their phone for less motion do not get that
@@ -19,13 +20,17 @@ export default function ConnectionStatus({ health, peersCount }) {
   if (status === "Critical") color = "#EF4444";
 
   const summary =
-    status === "Critical" ? "Unstable connection" : status === "Warning" ? "Some delays" : "Connected and stable";
+    status === "Critical" ? t("Unstable connection") : status === "Warning" ? t("Some delays") : t("Connected and stable");
   return (
     <View
       style={styles.container}
       accessible
       accessibilityRole="summary"
-      accessibilityLabel={`Mesh network: ${summary}. ${peersCount} ${peersCount === 1 ? "device" : "devices"} nearby. ${successRate} percent of messages delivered.`}
+      accessibilityLabel={t("Mesh network: {summary}. {devices} nearby. {rate} percent of messages delivered.", {
+        summary,
+        devices: tp("{count} device", "{count} devices", peersCount),
+        rate: successRate,
+      })}
     >
       <View style={styles.left}>
         <Animatable.View
@@ -45,22 +50,18 @@ export default function ConnectionStatus({ health, peersCount }) {
           ]}
         />
         <View>
-          <Text style={styles.title}>Mesh Network</Text>
+          <Text style={styles.title}>{t("Mesh Network")}</Text>
           <Text style={styles.subtitle}>
-            {status === "Critical"
-              ? "Unstable connection"
-              : status === "Warning"
-              ? "Some delays"
-              : "Connected and stable"}
+            {summary}
           </Text>
         </View>
       </View>
       <View style={styles.right}>
         <View style={styles.badge}>
           <Text style={styles.badgeIcon}>👥</Text>
-          <Text style={styles.badgeText}>{peersCount} devices</Text>
+          <Text style={styles.badgeText}>{tp("{count} device", "{count} devices", peersCount)}</Text>
         </View>
-        <Text style={styles.meta}>{successRate}% delivery</Text>
+        <Text style={styles.meta}>{t("{rate}% delivery", { rate: successRate })}</Text>
       </View>
     </View>
   );

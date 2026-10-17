@@ -10,6 +10,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import GeoBroadcast from "../mesh/GeoBroadcast.js";
 import IdentityManager from "../crypto/IdentityManager.js";
 import { sanitizeReport, sanitizeStoredReport, effectiveClosures, reportText, KEEP_MS, MAX_TOTAL, MAX_PER_SENDER } from "./reports.js";
+import { t } from "../i18n/i18n.js";
 
 const STORAGE_KEY = "@safelink_road_reports";
 
@@ -108,7 +109,7 @@ class RoadReportStore {
       senderId: "me",
       reportedAt: Date.now(),
     });
-    if (!clean) throw new Error("That report isn't valid: it needs a kind and a position.");
+    if (!clean) throw new Error(t("That report isn't valid: it needs a kind and a position."));
     const myId = await IdentityManager.getDeviceId();
     const summary = await GeoBroadcast.broadcast(myId, reportText(clean.kind, clean.note), {
       priority: "high",

@@ -16,6 +16,7 @@ import nacl from "tweetnacl";
 import { base64ToBytes, utf8Encode } from "../ble/codec.js";
 import { sanitizeText } from "../location/position.js";
 import { MAX_CATALOG_BYTES, MAX_PACK_BYTES } from "../../constants/maps.js";
+import { t } from "../i18n/i18n.js";
 
 export const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/; // also safe to use in a file name
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
@@ -99,21 +100,21 @@ const MAX_RETIRE = 8;
  * @throws {CatalogError} with a code: no_key | malformed | bad_signature | stale | invalid
  */
 export function verifyCatalog(wire, { publicKey, backupPublicKey = "", retiredKeys = [], lastSequence = 0, allowInsecure = false, now = Date.now() } = {}) {
-  if (!publicKey) fail("no_key", "Map downloads are not set up in this build (no publisher key).");
+  if (!publicKey) fail("no_key", t("Map downloads are not set up in this build (no publisher key)."));
 
   const retired = new Set(retiredKeys);
   const primary = parseKey(publicKey);
-  if (!primary) fail("no_key", "The publisher key in this build is not valid.");
+  if (!primary) fail("no_key", t("The publisher key in this build is not valid."));
   const backup = backupPublicKey ? parseKey(backupPublicKey) : null;
   const candidates = [];
   if (!retired.has(publicKey)) candidates.push({ role: "primary", key: primary });
   if (backup && !retired.has(backupPublicKey)) candidates.push({ role: "backup", key: backup });
-  if (candidates.length === 0) fail("no_key", "None of this build's publisher keys can be trusted any more. Update the app.");
+  if (candidates.length === 0) fail("no_key", t("None of this build's publisher keys can be trusted any more. Update the app."));
 
   if (!wire || typeof wire !== "object" || wire.format !== 1 || typeof wire.body !== "string" || typeof wire.signature !== "string") {
-    fail("malformed", "The map list is not in a format this app understands.");
+    fail("malformed", t("The map list is not in a format this app understands."));
   }
-  if (wire.body.length > MAX_CATALOG_BYTES) fail("malformed", "The map list is too large.");
+  if (wire.body.length > MAX_CATALOG_BYTES) fail("malformed", t("The map list is too large."));
 
   let signature;
   try {
@@ -121,37 +122,37 @@ export function verifyCatalog(wire, { publicKey, backupPublicKey = "", retiredKe
   } catch {
     signature = null;
   }
-  if (!signature || signature.length !== nacl.sign.signatureLength) fail("bad_signature", "The map list's signature is not valid, so it was not used.");
+  if (!signature || signature.length !== nacl.sign.signatureLength) fail("bad_signature", t("The map list's signature is not valid, so it was not used."));
   // Verify BEFORE reading anything inside the body.
   const bodyBytes = utf8Encode(wire.body);
   const signer = candidates.find((c) => nacl.sign.detached.verify(bodyBytes, signature, c.key));
-  if (!signer) fail("bad_signature", "The map list's signature is not valid, so it was not used.");
+  if (!signer) fail("bad_signature", t("The map list's signature is not valid, so it was not used."));
 
   let body;
   try {
     body = JSON.parse(wire.body);
   } catch {
-    fail("malformed", "The map list could not be read.");
+    fail("malformed", t("The map list could not be read."));
   }
-  if (!body || typeof body !== "object" || !Array.isArray(body.packs)) fail("malformed", "The map list could not be read.");
-  if (!Number.isInteger(body.sequence) || body.sequence < 1) fail("malformed", "The map list has no valid version number.");
+  if (!body || typeof body !== "object" || !Array.isArray(body.packs)) fail("malformed", t("The map list could not be read."));
+  if (!Number.isInteger(body.sequence) || body.sequence < 1) fail("malformed", t("The map list has no valid version number."));
 
   // Rollback protection: a catalog older than one already seen is refused, even though it is
   // genuinely signed (it could list a pack the publisher has since withdrawn).
   if (body.sequence < lastSequence) {
-    fail("stale", "This map list is older than one this phone has already seen, so it was not used.");
+    fail("stale", t("This map list is older than one this phone has already seen, so it was not used."));
   }
 
   const generated = Date.parse(body.generatedAt);
-  if (!Number.isFinite(generated) || generated > now + 24 * 3600 * 1000) fail("malformed", "The map list has an invalid date.");
-  if (body.packs.length > MAX_PACKS) fail("malformed", "The map list is too long.");
+  if (!Number.isFinite(generated) || generated > now + 24 * 3600 * 1000) fail("malformed", t("The map list has an invalid date."));
+  if (body.packs.length > MAX_PACKS) fail("malformed", t("The map list is too long."));
 
   const packs = [];
   const seen = new Set();
   for (const raw of body.packs) {
     const entry = cleanEntry(raw, allowInsecure);
-    if (!entry) fail("invalid", "The map list contains an entry that is not valid, so none of it was used.");
-    if (seen.has(entry.id)) fail("invalid", "The map list lists the same map twice, so none of it was used.");
+    if (!entry) fail("invalid", t("The map list contains an entry that is not valid, so none of it was used."));
+    if (seen.has(entry.id)) fail("invalid", t("The map list lists the same map twice, so none of it was used."));
     seen.add(entry.id);
     packs.push(entry);
   }

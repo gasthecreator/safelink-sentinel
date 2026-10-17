@@ -13,11 +13,14 @@ import { findPackFor } from "../services/navigation/packs";
 import { placeKinds, nearestPlaces } from "../services/navigation/places";
 import { formatDistance } from "../services/units/units";
 import { useUnits } from "../services/units/UnitStore";
+import { t } from "../services/i18n/i18n";
+import { useLanguage } from "../services/i18n/LanguageStore";
 
 // small buttons stay easy to hit: the touch area is 10 points bigger on every side
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 export default function NearbyScreen() {
+  useLanguage(); // re-render in the new language when it is changed
   const navigation = useNavigation();
   useUnits(); // re-render if the units setting changes
   const [position, setPosition] = useState(null);
@@ -68,28 +71,28 @@ export default function NearbyScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <TouchableOpacity hitSlop={HIT_SLOP} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back">
-        <Text style={styles.back}>‹ Back</Text>
+      <TouchableOpacity hitSlop={HIT_SLOP} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel={t("Back")}>
+        <Text style={styles.back}>{t("‹ Back")}</Text>
       </TouchableOpacity>
-      <Text accessibilityRole="header" style={styles.title}>Find help nearby</Text>
-      <Text style={styles.intro}>The nearest places from the offline map on this phone. No internet needed.</Text>
+      <Text accessibilityRole="header" style={styles.title}>{t("Find help nearby")}</Text>
+      <Text style={styles.intro}>{t("The nearest places from the offline map on this phone. No internet needed.")}</Text>
 
       {locating ? (
         <View style={styles.card}>
           <ActivityIndicator />
-          <Text style={styles.meta}>Getting your position...</Text>
+          <Text style={styles.meta}>{t("Getting your position...")}</Text>
         </View>
       ) : !position ? (
         <View style={styles.card}>
-          <Text style={styles.name}>No position yet</Text>
-          <Text style={styles.meta}>GPS has no fix (indoors?) or location is off. Try again, or start from a saved place.</Text>
+          <Text style={styles.name}>{t("No position yet")}</Text>
+          <Text style={styles.meta}>{t("GPS has no fix (indoors?) or location is off. Try again, or start from a saved place.")}</Text>
           <TouchableOpacity hitSlop={HIT_SLOP} style={styles.button} onPress={locate} accessibilityRole="button">
-            <Text style={styles.buttonText}>Try GPS again</Text>
+            <Text style={styles.buttonText}>{t("Try GPS again")}</Text>
           </TouchableOpacity>
           {saved.map((p) => (
             <TouchableOpacity hitSlop={HIT_SLOP} key={p.id} style={styles.row} onPress={() => setPosition(sanitizePosition(p))} accessibilityRole="button">
               <Text style={styles.name}>{p.name}</Text>
-              <Text style={styles.link}>Use</Text>
+              <Text style={styles.link}>{t("Use")}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -97,20 +100,20 @@ export default function NearbyScreen() {
         <View style={styles.card}><ActivityIndicator /></View>
       ) : pack === null ? (
         <View style={styles.card}>
-          <Text style={styles.name}>No offline map for where you are</Text>
-          <Text style={styles.meta}>Download one while you have internet, and this will work without it.</Text>
+          <Text style={styles.name}>{t("No offline map for where you are")}</Text>
+          <Text style={styles.meta}>{t("Download one while you have internet, and this will work without it.")}</Text>
           <TouchableOpacity hitSlop={HIT_SLOP} style={styles.button} onPress={() => navigation.navigate("OfflineMaps")} accessibilityRole="button">
-            <Text style={styles.buttonText}>Get offline maps</Text>
+            <Text style={styles.buttonText}>{t("Get offline maps")}</Text>
           </TouchableOpacity>
         </View>
       ) : kinds.length === 0 ? (
         <View style={styles.card}>
-          <Text style={styles.name}>This map has no places in it</Text>
+          <Text style={styles.name}>{t("This map has no places in it")}</Text>
           <Text style={styles.meta}>
             "{pack.name}" was made before places were included. Download an updated map to find hospitals, shelters and water.
           </Text>
           <TouchableOpacity hitSlop={HIT_SLOP} style={styles.button} onPress={() => navigation.navigate("OfflineMaps")} accessibilityRole="button">
-            <Text style={styles.buttonText}>Get offline maps</Text>
+            <Text style={styles.buttonText}>{t("Get offline maps")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -123,9 +126,9 @@ export default function NearbyScreen() {
                 onPress={() => setKind(k.kind)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: kind === k.kind }}
-                accessibilityLabel={`${k.plural}, ${k.count} in this map`}
+                accessibilityLabel={t("{kinds}, {count} in this map", { kinds: t(k.plural), count: k.count })}
               >
-                <Text style={[styles.chipText, kind === k.kind && styles.chipTextActive]}>{k.plural} ({k.count})</Text>
+                <Text style={[styles.chipText, kind === k.kind && styles.chipTextActive]}>{t(k.plural)} ({k.count})</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -135,18 +138,17 @@ export default function NearbyScreen() {
               style={styles.card}
               onPress={() => go(p)}
               accessibilityRole="button"
-              accessibilityLabel={`${p.name}, ${formatDistance(p.distanceM)} to the ${p.direction}. Get directions.`}
+              accessibilityLabel={t("{name}, {distance} to the {direction}. Get directions.", { name: p.name, distance: formatDistance(p.distanceM), direction: t(p.direction) })}
             >
               <Text style={styles.name}>{p.name}</Text>
               <Text style={styles.meta}>
-                {p.label} · {formatDistance(p.distanceM)} {p.direction}
+                {t(p.label)} · {formatDistance(p.distanceM)} {t(p.direction)}
               </Text>
-              <Text style={styles.link}>Get directions ›</Text>
+              <Text style={styles.link}>{t("Get directions ›")}</Text>
             </TouchableOpacity>
           ))}
           <Text style={styles.footnote}>
-            Distances are in a straight line. Places come from OpenStreetMap, which volunteers keep up to date: a place may
-            have closed or be missing, so call or check if you can. {pack.attribution}
+            {t("Distances are in a straight line. Places come from OpenStreetMap, which volunteers keep up to date: a place may have closed or be missing, so call or check if you can.")} {pack.attribution}
           </Text>
         </>
       )}

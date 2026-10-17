@@ -1,6 +1,7 @@
 // app/components/OfflineSyncModal.js
 import React from "react";
 import { Modal, View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { t } from "../services/i18n/i18n";
 
 export default function OfflineSyncModal({ visible, queuedCount }) {
   return (
@@ -8,13 +9,12 @@ export default function OfflineSyncModal({ visible, queuedCount }) {
       <View style={styles.backdrop}>
         <View style={styles.box}>
           <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.title}>Offline mode</Text>
+          <Text style={styles.title}>{t("Offline mode")}</Text>
           <Text style={styles.text}>
-            Your messages are safely stored on this device and will sync
-            automatically when another SafeLink device is nearby.
+            {t("Your messages are safely stored on this device and will sync automatically when another SafeLink device is nearby.")}
           </Text>
           <Text style={styles.counter}>
-            Queued messages: <Text style={styles.counterStrong}>{queuedCount}</Text>
+            {t("Queued messages:")} <Text style={styles.counterStrong}>{queuedCount}</Text>
           </Text>
         </View>
       </View>

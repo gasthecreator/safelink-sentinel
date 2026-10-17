@@ -2,6 +2,8 @@
 // Distances in metric (m, km) or imperial (ft, mi), for showing and for speaking.
 // Pure functions. Everything in the app measures in metres; this only changes the words.
 
+import { t, tp } from "../i18n/i18n.js";
+
 export const METRIC = "metric";
 export const IMPERIAL = "imperial";
 
@@ -47,15 +49,15 @@ export function spokenDistance(m, units) {
   if (!(typeof m === "number" && m >= 0)) return "";
   if (pick(units) === IMPERIAL) {
     const ft = m / M_PER_FOOT;
-    if (ft < 100) return `${Math.max(10, Math.round(ft / 10) * 10)} feet`;
-    if (ft < 1000) return `${Math.round(ft / 50) * 50} feet`;
+    if (ft < 100) return t("{count} feet", { count: Math.max(10, Math.round(ft / 10) * 10) });
+    if (ft < 1000) return t("{count} feet", { count: Math.round(ft / 50) * 50 });
     const mi = Math.round((m / M_PER_MILE) * 10) / 10;
-    return `${mi} mile${mi === 1 ? "" : "s"}`;
+    return tp("{count} mile", "{count} miles", mi);
   }
-  if (m < 100) return `${Math.max(10, Math.round(m / 10) * 10)} meters`;
-  if (m < 1000) return `${Math.round(m / 50) * 50} meters`;
+  if (m < 100) return t("{count} meters", { count: Math.max(10, Math.round(m / 10) * 10) });
+  if (m < 1000) return t("{count} meters", { count: Math.round(m / 50) * 50 });
   const km = Math.round(m / 100) / 10;
-  return `${km} kilometre${km === 1 ? "" : "s"}`;
+  return tp("{count} kilometre", "{count} kilometres", km);
 }
 
 /** Round-number steps for a map scale bar, with their length in metres and their label. */

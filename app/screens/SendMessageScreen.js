@@ -16,11 +16,14 @@ import LinearGradient from "react-native-linear-gradient";
 import { resolveAlertLocation } from "../services/location/resolveLocation";
 import { listPlaces } from "../services/location/PlaceStore";
 import { describeLocationOutcome, describePosition } from "../services/location/position";
+import { t, tp, N_ } from "../services/i18n/i18n";
+import { useLanguage } from "../services/i18n/LanguageStore";
 
 // small buttons stay easy to hit: the touch area is 10 points bigger on every side
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 const PRIORITIES = ["critical", "high", "normal", "low"];
+const PRIORITY_WORDS = { critical: N_("critical"), high: N_("high"), normal: N_("normal"), low: N_("low") };
 
 const PRIORITY_COLORS = {
   critical: "#EF4444",
@@ -33,16 +36,15 @@ const PRIORITY_COLORS = {
 function askNoFix(fix) {
   const why =
     fix.reason === "denied"
-      ? "Location permission was declined."
-      : "The phone could not get a GPS fix. Try near a window or outdoors.";
+      ? t("Location permission was declined.")
+      : t("The phone could not get a GPS fix. Try near a window or outdoors.");
   return new Promise((resolve) => {
-    Alert.alert(
-      "No GPS position",
-      `${why}\n\nYou can send without a position, or use a place you saved earlier.`,
+    Alert.alert(t("No GPS position"),
+      `${why}\n\n${t("You can send without a position, or use a place you saved earlier.")}`,
       [
-        { text: "Send without position", onPress: () => resolve("send") },
-        { text: "Use a saved place", onPress: () => resolve("places") },
-        { text: "Cancel", style: "cancel", onPress: () => resolve("cancel") },
+        { text: t("Send without position"), onPress: () => resolve("send") },
+        { text: t("Use a saved place"), onPress: () => resolve("places") },
+        { text: t("Cancel"), style: "cancel", onPress: () => resolve("cancel") },
       ],
       { cancelable: true, onDismiss: () => resolve("cancel") }
     );
@@ -50,6 +52,7 @@ function askNoFix(fix) {
 }
 
 export default function SendMessageScreen({ route, navigation }) {
+  useLanguage(); // re-render in the new language when it is changed
   const mode = route.params?.mode || "status";
   const [text, setText] = useState("");
   const [priority, setPriority] = useState("normal");
@@ -61,7 +64,7 @@ export default function SendMessageScreen({ route, navigation }) {
   const [selectedPlaceId, setSelectedPlaceId] = useState(null);
   const [where, setWhere] = useState("");
   const [sent, setSent] = useState(false);
-  const [resultText, setResultText] = useState("Message sent!");
+  const [resultText, setResultText] = useState(() => t("Message sent!"));
   const [delivered, setDelivered] = useState(true);
 
   // Saved places can change on the Places screen, so reload when coming back here.
@@ -71,18 +74,21 @@ export default function SendMessageScreen({ route, navigation }) {
     return navigation.addListener("focus", load);
   }, [navigation]);
 
-  const title = mode === "relief" ? "Request help" : "Send status update";
+  const title = mode === "relief" ? t("Request help") : t("Send status update");
   const placeholder =
     mode === "relief"
-      ? "Describe what you need, how many people are affected, and any urgent risks."
-      : "Example: I'm safe at the school shelter, I can help with first aid.";
+      ? t("Describe what you need, how many people are affected, and any urgent risks.")
+      : t("Example: I'm safe at the school shelter, I can help with first aid.");
 
   const onAutoPriority = () => {
     // Simple auto-detection
     const lower = text.toLowerCase();
-    if (lower.includes("emergency") || lower.includes("urgent")) {
+    // the words people use when it is urgent, in the languages the app is in
+    const urgent = ["emergency", "urgent", "emergencia", "urgente", "socorro"];
+    const asking = ["need", "help", "necesito", "ayuda", "necesitamos"];
+    if (urgent.some((w) => lower.includes(w))) {
       setPriority("critical");
-    } else if (lower.includes("need") || lower.includes("help")) {
+    } else if (asking.some((w) => lower.includes(w))) {
       setPriority("high");
     } else {
       setPriority("normal");
@@ -106,7 +112,7 @@ export default function SendMessageScreen({ route, navigation }) {
       // user decides what to do; a failure here never silently drops the message.
       const place = places.find((p) => p.id === selectedPlaceId);
       if (includeLocation && source === "place" && !place) {
-        Alert.alert("Choose a place", "Pick one of your saved places, or switch back to GPS.");
+        Alert.alert(t("Choose a place"), t("Pick one of your saved places, or switch back to GPS."));
         setSubmitting(false);
         return;
       }
@@ -153,10 +159,14 @@ export default function SendMessageScreen({ route, navigation }) {
       const ok = reached > 0;
       setDelivered(ok);
       const deliveryText = ok
-        ? `Delivered to ${reached} nearby device${reached === 1 ? "" : "s"}. It will also go to devices that come into range later.`
+        ? tp(
+            "Delivered to {count} nearby device. It will also go to devices that come into range later.",
+            "Delivered to {count} nearby devices. It will also go to devices that come into range later.",
+            reached
+          )
         : summary?.queued
-        ? "Not delivered yet: no one is in range. It is saved and will be sent automatically when a device comes into range (kept for 24 hours)."
-        : "No nearby devices in range. Nothing was sent.";
+        ? t("Not delivered yet: no one is in range. It is saved and will be sent automatically when a device comes into range (kept for 24 hours).")
+        : t("No nearby devices in range. Nothing was sent.");
       setResultText(includeLocation ? `${deliveryText} ${describeLocationOutcome(fix)}` : deliveryText);
       setSent(true);
       setSubmitting(false);
@@ -169,7 +179,7 @@ export default function SendMessageScreen({ route, navigation }) {
       console.error("[SendMessageScreen] Send error:", error);
       setSubmitting(false);
       setDelivered(false);
-      setResultText("Something went wrong. Your message was not sent.");
+      setResultText(t("Something went wrong. Your message was not sent."));
       setSent(true);
       setTimeout(() => setSent(false), 4000);
     }
@@ -183,12 +193,12 @@ export default function SendMessageScreen({ route, navigation }) {
       >
         <ScrollView style={styles.container}>
         <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={styles.backText}>{t("← Back")}</Text>
         </TouchableOpacity>
 
         <Text accessibilityRole="header" style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>
-          Your message will travel across nearby devices, even without the internet.
+          {t("Your message will travel across nearby devices, even without the internet.")}
         </Text>
 
         {sent && (
@@ -204,7 +214,7 @@ export default function SendMessageScreen({ route, navigation }) {
         )}
 
         <TextInput
-          accessibilityLabel="Your message"
+          accessibilityLabel={t("Your message")}
           style={styles.input}
           editable={!submitting}
           multiline
@@ -215,12 +225,12 @@ export default function SendMessageScreen({ route, navigation }) {
         />
 
         <View style={styles.row}>
-          <Text style={styles.label}>Priority</Text>
+          <Text style={styles.label}>{t("Priority")}</Text>
           <View style={styles.pillRow}>
             {PRIORITIES.map((p) => (
               <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
                 accessibilityState={{ selected: priority === p, disabled: submitting }}
-                accessibilityLabel={`Priority ${p}`}
+                accessibilityLabel={t("Priority {priority}", { priority: t(PRIORITY_WORDS[p]) })}
                 key={p}
                 disabled={submitting}
                 onPress={() => setPriority(p)}
@@ -238,7 +248,7 @@ export default function SendMessageScreen({ route, navigation }) {
                     priority === p && styles.pillTextActive,
                   ]}
                 >
-                  {p}
+                  {t(PRIORITY_WORDS[p])}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -246,9 +256,9 @@ export default function SendMessageScreen({ route, navigation }) {
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.label}>Include my location</Text>
+          <Text style={styles.label}>{t("Include my location")}</Text>
           <Switch
-            accessibilityLabel="Include my location in this message"
+            accessibilityLabel={t("Include my location in this message")}
             value={includeLocation}
             onValueChange={setIncludeLocation}
             trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
@@ -259,8 +269,8 @@ export default function SendMessageScreen({ route, navigation }) {
           <>
             <View style={styles.sourceRow}>
               {[
-                ["gps", "GPS"],
-                ["place", "A saved place"],
+                ["gps", t("GPS")],
+                ["place", t("A saved place")],
               ].map(([value, label]) => (
                 <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
                   accessibilityState={{ selected: source === value }}
@@ -278,7 +288,7 @@ export default function SendMessageScreen({ route, navigation }) {
               <View style={styles.placesBox}>
                 {places.length === 0 ? (
                   <Text style={styles.locationNote}>
-                    You have no saved places yet. Save one while you have a GPS fix.
+                    {t("You have no saved places yet. Save one while you have a GPS fix.")}
                   </Text>
                 ) : (
                   places.map((place) => {
@@ -300,27 +310,27 @@ export default function SendMessageScreen({ route, navigation }) {
                   })
                 )}
                 <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Places")}>
-                  <Text style={styles.manageLink}>Manage saved places</Text>
+                  <Text style={styles.manageLink}>{t("Manage saved places")}</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
             <Text style={styles.locationNote}>
               {source === "gps"
-                ? "Uses GPS, which works without internet. Every nearby phone that receives your message can see where you are."
-                : "Uses the place you choose. Every nearby phone that receives your message can see it."}
+                ? t("Uses GPS, which works without internet. Every nearby phone that receives your message can see where you are.")
+                : t("Uses the place you choose. Every nearby phone that receives your message can see it.")}
             </Text>
           </>
         ) : (
-          <Text style={styles.locationNote}>Your message will be sent without a position.</Text>
+          <Text style={styles.locationNote}>{t("Your message will be sent without a position.")}</Text>
         )}
 
-        <Text style={styles.label}>Where are you? (optional)</Text>
+        <Text style={styles.label}>{t("Where are you? (optional)")}</Text>
         <TextInput
-          accessibilityLabel="Where are you, optional"
+          accessibilityLabel={t("Where are you, optional")}
           style={styles.whereInput}
           value={where}
           onChangeText={setWhere}
-          placeholder="e.g. 2nd floor, behind the pharmacy"
+          placeholder={t("e.g. 2nd floor, behind the pharmacy")}
           maxLength={200}
           editable={!submitting}
         />
@@ -331,13 +341,13 @@ export default function SendMessageScreen({ route, navigation }) {
           onPress={handleSubmit}
         >
           <Text style={styles.buttonText}>
-            {locating ? "Getting your location..." : submitting ? "Sending..." : "Send message"}
+            {locating ? t("Getting your location...") : submitting ? t("Sending...") : t("Send message")}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={onAutoPriority} disabled={!text.trim()}>
           <Text style={styles.autoLink}>
-            🤖 Auto-detect priority from message
+            {t("🤖 Auto-detect priority from message")}
           </Text>
         </TouchableOpacity>
         </ScrollView>

@@ -2,10 +2,11 @@
 import React from "react";
 import { View, Text, StyleSheet, FlatList } from "react-native";
 import * as Animatable from "react-native-animatable";
+import { t, N_ } from "../services/i18n/i18n";
 
 function PeerRow({ peer, index }) {
   const strength =
-    peer.rssi >= -60 ? "Strong" : peer.rssi >= -75 ? "Medium" : "Weak";
+    peer.rssi >= -60 ? N_("Strong") : peer.rssi >= -75 ? N_("Medium") : N_("Weak");
   
   const strengthColor = 
     peer.rssi >= -60 ? "#10B981" : peer.rssi >= -75 ? "#F59E0B" : "#EF4444";
@@ -20,9 +21,9 @@ function PeerRow({ peer, index }) {
         <View style={styles.rowLeft}>
           <View style={[styles.deviceDot, { backgroundColor: strengthColor }]} />
           <View>
-            <Text style={styles.name}>{peer.name || "Unknown device"}</Text>
+            <Text style={styles.name}>{peer.name || t("Unknown device")}</Text>
             <Text style={styles.meta}>
-              {strength} • {peer.distance ? `${peer.distance}m` : "distance n/a"}
+              {t(strength)} • {peer.distance ? `${peer.distance}m` : t("distance n/a")}
             </Text>
           </View>
         </View>
@@ -36,12 +37,12 @@ export default function NearbyDevices({ peers }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Nearby devices</Text>
-        <Text style={styles.count}>{peers.length} connected</Text>
+        <Text style={styles.title}>{t("Nearby devices")}</Text>
+        <Text style={styles.count}>{t("{count} connected", { count: peers.length })}</Text>
       </View>
       {peers.length === 0 ? (
         <Text style={styles.empty}>
-          No nearby devices yet. Keep the app open to join a mesh.
+          {t("No nearby devices yet. Keep the app open to join a mesh.")}
         </Text>
       ) : (
         <FlatList

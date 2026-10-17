@@ -5,11 +5,14 @@ import { useNavigation } from "@react-navigation/native";
 import * as Animatable from "react-native-animatable";
 import LinearGradient from "react-native-linear-gradient";
 import NodeDiscovery from "../services/mesh/NodeDiscovery";
+import { t } from "../services/i18n/i18n";
+import { useLanguage } from "../services/i18n/LanguageStore";
 
 // small buttons stay easy to hit: the touch area is 10 points bigger on every side
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 export default function PeerListScreen() {
+  useLanguage(); // re-render in the new language when it is changed
   const [peers, setPeers] = useState(() => NodeDiscovery.getPeers());
   const navigation = useNavigation();
 
@@ -39,9 +42,9 @@ export default function PeerListScreen() {
           <View style={styles.peerLeft}>
             <Text style={[styles.deviceIcon, { color: strength }]}>📱</Text>
             <View>
-              <Text style={styles.peerName}>{item.name || "Unknown Node"}</Text>
+              <Text style={styles.peerName}>{item.name || t("Unknown Node")}</Text>
               <Text style={styles.meta}>
-                ID: {item.id.substring(0, 6)}...  |  {item.distance ? `${item.distance}m` : "N/A"}
+                {t("ID: {id}...", { id: item.id.substring(0, 6) })}  |  {item.distance ? `${item.distance}m` : t("N/A")}
               </Text>
             </View>
           </View>
@@ -56,12 +59,12 @@ export default function PeerListScreen() {
       colors={["#F8FAFC", "#E0E7FF"]}
       style={styles.container}
     >
-      <Text accessibilityRole="header" style={styles.title}>Connected Devices</Text>
+      <Text accessibilityRole="header" style={styles.title}>{t("Connected Devices")}</Text>
       <Text style={styles.subtitle}>
-        SafeLink nodes currently within Bluetooth range of this phone.
+        {t("SafeLink nodes currently within Bluetooth range of this phone.")}
       </Text>
       {peers.length === 0 ? (
-        <Text style={styles.empty}>No nearby SafeLink devices found yet. Keep the app open on both phones.</Text>
+        <Text style={styles.empty}>{t("No nearby SafeLink devices found yet. Keep the app open on both phones.")}</Text>
       ) : (
         <FlatList
           data={peers}
@@ -75,7 +78,7 @@ export default function PeerListScreen() {
         onPress={() => navigation.goBack()}
         style={styles.backButton}
       >
-        <Text style={styles.backText}>← Back</Text>
+        <Text style={styles.backText}>{t("← Back")}</Text>
       </TouchableOpacity>
     </LinearGradient>
   );

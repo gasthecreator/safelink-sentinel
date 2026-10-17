@@ -8,11 +8,13 @@
 // hysteresis so the band doesn't flicker at a boundary, plus a warmer/colder trend,
 // which is the part that actually works when you are walking toward someone.
 
+import { N_ } from "../i18n/i18n.js";
+
 export const BANDS = [
-  { id: "here", min: -55, label: "Very close", hint: "Within a few steps" },
-  { id: "close", min: -70, label: "Close", hint: "Nearby, look around" },
-  { id: "near", min: -85, label: "In range", hint: "Within Bluetooth range, keep moving toward them" },
-  { id: "far", min: -Infinity, label: "Weak signal", hint: "At the edge of range" },
+  { id: "here", min: -55, label: N_("Very close"), hint: N_("Within a few steps") },
+  { id: "close", min: -70, label: N_("Close"), hint: N_("Nearby, look around") },
+  { id: "near", min: -85, label: N_("In range"), hint: N_("Within Bluetooth range, keep moving toward them") },
+  { id: "far", min: -Infinity, label: N_("Weak signal"), hint: N_("At the edge of range") },
 ];
 
 const VALID_RSSI = [-110, 0];
