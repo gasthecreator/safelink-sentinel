@@ -21,7 +21,7 @@ The phone app needs Android Studio or Xcode: see the README, and [docs/DEVICE_TE
 1. Open an issue first for anything non-trivial, so the approach is agreed before the work.
 2. Branch from `main` (`feat/<topic>`, `fix/<topic>`, `docs/<topic>`). Keep branches short-lived.
 3. One purpose per pull request, with tests. Refactors go in their own PR.
-4. Run `npm test` locally. CI runs the same tests and also bundles the JavaScript for Android and iOS, builds the dashboard, the Android release APK and the iOS simulator app.
+4. Run `npm test` and `npm run lint` locally. CI runs the same checks and also bundles the JavaScript for Android and iOS, builds the dashboard, the Android release APK and the iOS simulator app.
 5. Open the PR using the template. Say what changed and why, and **what you did not verify**. This project keeps an explicit "not verified" list (Bluetooth between two real phones, iOS at runtime, and so on); please keep it honest.
 6. Address review comments. A comment starting with `Nit:` is optional.
 
@@ -31,6 +31,7 @@ Short, imperative summary in sentence case, saying what the change does ("Resume
 
 ## Standards
 
+- `npm run lint` must report no errors (warnings are being worked down: do not add new ones). Run `npm run format:changed -- --write` to Prettier-format the files you touched; the code base predates Prettier, so only changed files are checked.
 - New behaviour needs tests, including failure paths. A bug fix starts with a test that fails.
 - User-visible text goes through `t("...")` and gets a Spanish entry in `app/services/i18n/locales/es.js`; the i18n test fails otherwise ([docs/LANGUAGES.md](docs/LANGUAGES.md)).
 - Buttons and images need accessibility roles and labels; the accessibility test checks this ([docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)).
