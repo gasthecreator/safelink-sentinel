@@ -406,6 +406,8 @@ export default {
   "Their phone hasn't been heard nearby recently. Bluetooth only reaches tens of metres, so use their position or their own words to get closer, and try again when you are near.": "No se ha detectado su teléfono cerca últimamente. Bluetooth solo alcanza decenas de metros, así que usa su ubicación o sus propias palabras para acercarte, e inténtalo de nuevo cuando estés cerca.",
   "Their position is outside the \"{name}\" map.": "Su ubicación está fuera del mapa «{name}».",
   "Them": "Ellos",
+  "not verified": "no verificado",
+  "verified": "verificado",
   "They said: {where}": "Dijeron: {where}",
   "This alert did not include where the sender is. Use their own words above.": "Esta alerta no incluyó dónde está quien la envió. Usa sus propias palabras de arriba.",
   "This erases your saved places, alerts, messages waiting to be sent, road reports and logs, AND this phone's identity. Other phones will see you as a brand new device, and nobody can send you messages addressed to your old identity. Downloaded maps and settings stay. This cannot be undone.": "Esto borra tus lugares guardados, alertas, mensajes en espera de envío, reportes de calles y registros, Y la identidad de este teléfono. Los demás teléfonos te verán como un dispositivo totalmente nuevo y nadie podrá enviarte mensajes dirigidos a tu identidad anterior. Los mapas descargados y los ajustes se conservan. No se puede deshacer.",

@@ -176,6 +176,18 @@ sent to every device that later comes into range.
 If nothing is in range the send screen says so instead of reporting success;
 that is intended.
 
+### Identity proof check (is the other phone really who it says)
+
+Each phone challenges the other when they first meet. On the **home screen's Nearby devices** list, each device shows
+"verified" or "not verified" after its name.
+
+1. With both phones running this build, open the app on both and wait up to a minute. Each should list the other as
+   **verified**. If it says "not verified" for two phones that both have this build, the proof exchange is failing on
+   real hardware: open Diagnostics on both and look for lines like `Could not verify` (the read-back after the
+   challenge may need a longer wait on that phone model: see `PROOF_READ_DELAY_MS` in `BleTransport.js`). Everything
+   else (alerts, relays, directions) still works unverified; only direct messages to that device are held back.
+2. Note the result for each phone model in the table below (an iPhone and an iPad may behave differently).
+
 ## Seeing what the app is doing: the Diagnostics screen
 
 Release builds on iOS show no console, so the app has its own. On the home

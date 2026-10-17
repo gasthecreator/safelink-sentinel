@@ -19,6 +19,7 @@ import AnalyticsLogger from "../storage/AnalyticsLogger.js";
 import MessageCache from "../storage/MessageCache.js";
 import BleTransport from "../ble/BleTransport.js";
 import Outbox from "./Outbox.js";
+import { isVerified } from "./peerTrust.js";
 
 // In-memory outgoing queue
 const messageQueue = [];
@@ -181,6 +182,16 @@ class MessageRelay {
       message.status = "failed";
       AnalyticsLogger.logDelivery(message, false, receiver);
       RouterAI.recordResult(message.receiverId, false);
+      return false;
+    }
+
+    // A direct message is meant for ONE person. Hand it only to a device that has proved it holds that person's
+    // key; a device that merely advertises their (public, copyable) profile could swallow it.
+    if (message.envelope.type === "direct" && !isVerified(receiver)) {
+      console.log(`[SafeLink] 🔒 Not sending to ${receiver.name}: this device has not proved it is who it says it is`);
+      message.status = "failed";
+      message.failureReason = "unverified";
+      AnalyticsLogger.logDelivery(message, false, receiver);
       return false;
     }
 

@@ -27,11 +27,16 @@ These are limits of an open, serverless mesh, not bugs waiting for a fix.
 2. **Fake identities can imitate a crowd.** A road report counts as confirmed or cleared when two
    different phones say so; one person with two keys can do that. The caps above limit how much they can
    store, not what they can claim.
-3. **Another phone can pose as a nearby phone at the radio level.** The identity a phone offers over
-   Bluetooth is public, so a nearby attacker can offer someone else's. They cannot read that person's
-   private messages (those are sealed to the real key), but they could swallow messages meant for them. The
-   fix is a challenge-and-response when connecting, which needs a change to the Bluetooth protocol and
-   testing on real phones; it is not done.
+3. **A nearby phone can copy someone's public profile, but cannot prove it is them.** When a phone finds another, it
+   sends a random challenge; the other phone signs it with its identity key and republishes its profile with that
+   proof, and the first phone checks it (`PeerProof`). A phone that passes is "verified" for 10 minutes. A device that
+   copies Bob's profile cannot sign for him, so it cannot take over Bob's entry in the nearby list (even at a new
+   Bluetooth address), and a **direct** message for Bob is never handed to a device that has not proved it is Bob. Limits:
+   a determined attacker standing between two phones can *relay* the challenge to the real Bob in real time and so
+   pass for him while they are both in range; a phone running an older build cannot answer, so it shows as "not
+   verified" and cannot receive direct messages (alerts and relays still reach it); and **this has not run on real
+   phones**: the exchange is tested against a simulated Bluetooth link, and the timing of the read-back on real
+   hardware is the thing the two-phone test must confirm.
 4. **Jamming and denial of service.** Someone determined to keep a phone busy or block Bluetooth can.
    The caps make a sustained flood drop messages instead of draining the battery, but also mean a flood
    can crowd out real messages for as long as it lasts.

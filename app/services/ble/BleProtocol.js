@@ -31,6 +31,31 @@ export const REASSEMBLY_TIMEOUT_MS = 30000;
 export const MAX_OPEN_TRANSFERS = 64;
 export const MAX_OPEN_PER_SOURCE = 4;
 
+// Control frames share the message characteristic but start with a different version byte, so a phone running
+// an older build ignores them (its reassembler drops any frame whose first byte is not 1).
+export const CONTROL_VERSION = 2;
+export const CONTROL_CHALLENGE = 1;
+export const CHALLENGE_BYTES = 16;
+
+/** A "prove you hold the key for your advertised identity" request carrying a fresh random nonce. */
+export function encodeChallenge(nonce) {
+  if (!nonce || nonce.length !== CHALLENGE_BYTES) throw new Error("A challenge needs a 16-byte nonce");
+  const frame = new Uint8Array(2 + CHALLENGE_BYTES);
+  frame[0] = CONTROL_VERSION;
+  frame[1] = CONTROL_CHALLENGE;
+  frame.set(nonce, 2);
+  return frame;
+}
+
+/** { kind: "challenge", nonce } for a well-formed control frame, otherwise null (including every ordinary frame). */
+export function decodeControl(frame) {
+  if (!frame || frame[0] !== CONTROL_VERSION) return null;
+  if (frame[1] === CONTROL_CHALLENGE && frame.length === 2 + CHALLENGE_BYTES) {
+    return { kind: "challenge", nonce: frame.slice(2) };
+  }
+  return null;
+}
+
 export function maxFramePayload(mtu = DEFAULT_MTU) {
   const size = mtu - ATT_OVERHEAD - FRAME_HEADER_SIZE;
   if (size < 1) throw new Error(`MTU ${mtu} too small for framing`);

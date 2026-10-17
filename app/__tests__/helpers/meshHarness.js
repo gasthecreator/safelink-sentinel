@@ -77,11 +77,13 @@ async function boot(network, name, store) {
 }
 
 /** `a` learns that `b` exists (as discovery would) and, if inRange, can reach it. */
-async function discover(network, a, b, { reachable = true } = {}) {
+async function discover(network, a, b, { reachable = true, verified = true } = {}) {
   const pb = await b.Id.getPublicProfile();
   await a.peerCache.storePeer({
     id: pb.id, bleId: `ble-${b.name}`, name: b.name, rssi: -50, sign: pb.sign, box: pb.box,
     timestamp: new Date().toISOString(),
+    // as NodeDiscovery records a device that answered the challenge (see PeerProof / peerTrust)
+    verifiedAt: verified ? Date.now() : null,
   });
   if (reachable) network.link(a.id, b.id);
 }

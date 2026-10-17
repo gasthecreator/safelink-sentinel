@@ -49,6 +49,7 @@ async function introduce(a, b) {
   await a.peerCache.storePeer({
     id: pb.id, bleId: `ble-${b.name}`, name: b.name, rssi: -50, sign: pb.sign, box: pb.box,
     timestamp: new Date().toISOString(),
+    verifiedAt: Date.now(), // the device answered the identity challenge (see PeerProof / peerTrust)
   });
   links.add(`${(await a.Id.getDeviceId())}|${pb.id}`);
 }

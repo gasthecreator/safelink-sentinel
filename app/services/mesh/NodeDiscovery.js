@@ -8,6 +8,7 @@
 
 import { Platform, PermissionsAndroid } from "react-native";
 import { storePeer, removeOldPeers } from "../storage/PeerCache.js";
+import { decideClaim } from "./peerTrust.js";
 import IdentityManager from "../crypto/IdentityManager.js";
 import { getBleManager } from "../ble/bleManager.js";
 import BleTransport from "../ble/BleTransport.js";
@@ -211,8 +212,15 @@ class NodeDiscovery {
       try {
         const profile = await BleTransport.readProfile(bleId);
         if (profile.id === this.deviceId) continue; // our own advertisement
+        // An identity is only a copyable public profile until the device has proved it holds the key. A device
+        // that has not, claiming the id of one that has (at another address), does not get to take it over.
+        const claim = decideClaim(this.peerMap.get(profile.id), { bleId, verified: !!profile.verified }, now);
+        if (claim.action === "ignore") {
+          console.log(`[SafeLink] Ignored ${bleId}: ${claim.reason} (${profile.id.slice(0, 8)})`);
+          continue;
+        }
         this.bleToPeer.set(bleId, { id: profile.id, resolvedAt: now });
-        await this.upsertPeer(this.buildPeer(profile, bleId, info));
+        await this.upsertPeer({ ...this.buildPeer(profile, bleId, info), verifiedAt: claim.verifiedAt });
       } catch (err) {
         console.log(`[SafeLink] Could not resolve ${bleId}: ${err.message}`);
       }
