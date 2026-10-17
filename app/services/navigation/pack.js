@@ -10,6 +10,9 @@ const FLAG_DRIVE = 2;
 const FLAG_ONEWAY = 4;
 const MAX_NODES = 3_000_000;
 const MAX_EDGES = 6_000_000;
+const MAX_PLACES = 200_000;
+// The kinds of place a pack may carry. Anything else is refused, so a pack cannot smuggle in arbitrary labels as kinds.
+export const PLACE_KINDS = ["hospital", "clinic", "pharmacy", "fire", "police", "shelter", "assembly", "water"];
 
 const isInt = (v) => Number.isInteger(v);
 
@@ -63,6 +66,31 @@ export function loadPack(raw) {
       edgeName[i] = nm;
     }
 
+    // optional: places worth finding (hospitals, shelters, water...), [kind, lat, lon, name] per place
+    let pois = { count: 0, kinds: [], kind: new Uint8Array(0), lat: new Float64Array(0), lon: new Float64Array(0), name: new Int32Array(0) };
+    if (raw.pois !== undefined || raw.poiKinds !== undefined) {
+      const { poiKinds, pois: flat } = raw;
+      if (!Array.isArray(poiKinds) || !Array.isArray(flat) || flat.length % 4 !== 0) return { ok: false, error: "Map pack has an invalid places section." };
+      if (poiKinds.length > PLACE_KINDS.length || poiKinds.some((k) => !PLACE_KINDS.includes(k))) return { ok: false, error: "Map pack has an unknown kind of place." };
+      const count = flat.length / 4;
+      if (count > MAX_PLACES) return { ok: false, error: "Map pack has too many places." };
+      const kind = new Uint8Array(count);
+      const plat = new Float64Array(count);
+      const plon = new Float64Array(count);
+      const pname = new Int32Array(count);
+      for (let i = 0; i < count; i++) {
+        const [k, la, lo, nm] = flat.slice(4 * i, 4 * i + 4);
+        if (![k, la, lo, nm].every(isInt) || k < 0 || k >= poiKinds.length || nm < 0 || nm >= names.length || Math.abs(la) > 90e6 || Math.abs(lo) > 180e6) {
+          return { ok: false, error: "Map pack has an invalid place." };
+        }
+        kind[i] = k;
+        plat[i] = la / 1e6;
+        plon[i] = lo / 1e6;
+        pname[i] = nm;
+      }
+      pois = { count, kinds: poiKinds.slice(), kind, lat: plat, lon: plon, name: pname };
+    }
+
     return {
       ok: true,
       graph: {
@@ -72,6 +100,7 @@ export function loadPack(raw) {
         nodeCount: n,
         edgeCount: m,
         lat, lon, ea, eb, len, cls, flags, edgeName,
+        pois,
         names: names.map((s) => (typeof s === "string" ? s.slice(0, 120) : "")),
         classes: classes.map((s) => (typeof s === "string" ? s.slice(0, 40) : "")),
         modes: {}, // built on first use, per travel mode

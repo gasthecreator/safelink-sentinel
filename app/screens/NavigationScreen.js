@@ -265,6 +265,7 @@ export default function NavigationScreen() {
         <Text style={styles.back}>← Back</Text>
       </TouchableOpacity>
       <Text style={styles.title}>Directions to {alert.title ? `"${alert.title}"` : "them"}</Text>
+      {alert.subtitle ? <Text style={styles.where}>{alert.subtitle}</Text> : null}
       {alert.where ? <Text style={styles.where}>They said: {alert.where}</Text> : null}
       <Text style={styles.note}>
         Worked out on this phone from an offline map, with no internet. It follows the roads in the

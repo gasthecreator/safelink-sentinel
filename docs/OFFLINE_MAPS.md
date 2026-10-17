@@ -166,6 +166,24 @@ Phones that never reconnect to the internet keep trusting the old key until they
 Limits: if the **backup** key leaks too, there is no way to retire it from afar; ship a new app with new keys.
 A phone only learns of a retirement when it next checks for maps.
 
+## Places: hospitals, shelters, water
+
+Maps built from now on also carry the places that matter in an emergency, taken from the same OpenStreetMap
+data: hospitals, clinics, pharmacies, fire stations, police, shelters, assembly points and drinking water.
+**Find help nearby** (home screen) lists the nearest of each kind from the map on the phone, with distance and
+direction, and opens directions to the one you tap. It needs no internet.
+
+Be clear about its limits:
+
+- It is only as good as OpenStreetMap. Volunteers keep it up to date, so a place may be missing or have closed.
+  The screen says so. Shelters in particular are rarely mapped: the Grambling and Ruston area has hospitals,
+  clinics, pharmacies, police, fire stations and drinking water, but no mapped shelters.
+- Distances are in a straight line; the route that follows is worked out over the roads.
+- Maps made **before** this feature have no places (the screen says so and offers to download an updated map).
+  The map published as `map-packs` is such a map until you rebuild and publish it again (a new version number
+  is picked automatically when the file changes).
+- A map near the size limit is a little bigger with places (the Grambling and Ruston map grew from 1,228 KB to 1,230 KB).
+
 ## Things worth knowing
 
 - **Coverage:** a pack fully covers the box you asked for. Roads crossing the edge are included
