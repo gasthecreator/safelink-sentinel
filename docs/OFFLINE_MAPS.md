@@ -72,7 +72,7 @@ small request is fetched in tiles (about 400 km2 each, with a pause between them
 one pack, and retried if a server is busy. Finished tiles are kept next to the output (`--cache DIR`
 to choose where), so a run that fails part-way carries on where it stopped. One pack can cover up to
 1 square degree (about 10,000 km2, an estimated 20-25 MB from the measurement below, not yet tried on
-a phone); for more, make several packs.
+a phone); for more, make several packs that touch each other (see "Several maps" below).
 Roads that cross the edge of the area you asked for are included whole.
 
 Measured with a real pack: a 1,300 km2 area (the whole of Lincoln Parish, Louisiana) is 2.8 MB, loads
@@ -183,6 +183,21 @@ Be clear about its limits:
   The map published as `map-packs` is such a map until you rebuild and publish it again (a new version number
   is picked automatically when the file changes).
 - A map near the size limit is a little bigger with places (the Grambling and Ruston map grew from 1,228 KB to 1,230 KB).
+
+## Several maps
+
+When a trip is not inside any one map but the maps on the phone, together, cover both ends, the phone joins the
+neighbouring ones into one road network for that trip (up to 4 maps and about 1.5 million road segments) and routes
+across the join. This is what lets a whole state be a set of county-sized maps.
+
+How to make maps that join: build each with `--bbox` so the areas **touch or overlap** (the builder keeps every road
+crossing the edge of its area, whole, so neighbouring maps share the points of those roads and connect there).
+A gap between two maps means no route across it.
+
+Checked against real data: Grambling and Ruston built as two adjacent maps and joined on the phone gave exactly the
+same network as the same area built as one map (29,150 points, 31,611 roads, 31 places), and all 364 sampled walking
+and driving routes were identical, 192 of them crossing the join. Joining took about 35 ms on a laptop and the joined
+map is kept for the next trip. Not yet tried: four large maps on a phone's memory.
 
 ## Things worth knowing
 
