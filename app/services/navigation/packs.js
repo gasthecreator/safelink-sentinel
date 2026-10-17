@@ -4,18 +4,21 @@
 // A downloaded pack replaces a bundled one with the same id. Packs load lazily and are cached.
 
 import { loadPack } from "./pack.js";
+import { bboxesTouch, mergeGraphs } from "./mergePacks.js";
 
 const BUNDLED = [
   { id: "grambling-la", load: () => require("../../assets/maps/grambling-la.json") },
 ];
 
 const cache = new Map(); // "id@version" -> loaded result (only successes)
+const joinedCache = new Map(); // "id@version+id@version" -> merged map (just the latest)
 
 // The installed-pack store is looked up on first use so tests and pure callers never load react-native-fs.
 let installedSource = null;
 export function setInstalledSource(source) {
   installedSource = source;
   cache.clear();
+  joinedCache.clear();
 }
 const installedStore = () => installedSource || (installedSource = require("../maps/PackStore.js").default);
 
@@ -67,6 +70,68 @@ const covers = (bbox, p, margin = 0.003) => {
  * Only packs whose area could matter are read from storage.
  */
 export async function findPackFor(points) {
+  const single = await findSinglePack(points);
+  if (single.pack) return single;
+  // No one map covers the whole trip. Neighbouring maps can be joined, if together they cover every point.
+  const joined = await findJoinedPacks(points);
+  return joined ? { pack: joined, partial: null } : single;
+}
+
+const MAX_JOINED = 4;
+const MAX_JOINED_EDGES = 1_500_000;
+
+// Maps that touch each other, starting from those that cover a point of the trip and grown until no more
+// join. Areas come from the manifest (or, for the bundled map, from the map itself), and only the maps that
+// end up in the group are read from storage.
+async function findJoinedPacks(points) {
+  const all = [];
+  for (const src of await sources()) {
+    let bbox = src.bbox;
+    if (!bbox) {
+      const result = await loaded(src);
+      if (!result.ok) continue;
+      bbox = result.graph.bbox;
+    }
+    all.push({ src, bbox });
+  }
+  const group = all.filter((c) => points.some((p) => covers(c.bbox, p)));
+  if (group.length === 0) return null;
+  for (let grew = true; grew && group.length < MAX_JOINED; ) {
+    grew = false;
+    for (const c of all) {
+      if (group.includes(c) || !group.some((g) => bboxesTouch(g.bbox, c.bbox))) continue;
+      group.push(c);
+      grew = true;
+      if (group.length >= MAX_JOINED) break;
+    }
+  }
+  // only the maps that are joined to the first one count, and between them they must cover every point
+  const joined = new Set([group[0]]);
+  for (let spread = true; spread; ) {
+    spread = false;
+    for (const g of group) {
+      if (!joined.has(g) && [...joined].some((j) => bboxesTouch(j.bbox, g.bbox))) { joined.add(g); spread = true; }
+    }
+  }
+  const used = group.filter((g) => joined.has(g));
+  if (used.length < 2 || !points.every((p) => used.some((g) => covers(g.bbox, p)))) return null;
+
+  const graphs = [];
+  for (const g of used) {
+    const result = await loaded(g.src);
+    if (!result.ok) return null;
+    graphs.push(result.graph);
+  }
+  if (graphs.reduce((t, g) => t + g.edgeCount, 0) > MAX_JOINED_EDGES) return null;
+  const joinKey = used.map((g) => `${g.src.id}@${g.src.version}`).sort().join("+");
+  if (joinedCache.has(joinKey)) return joinedCache.get(joinKey);
+  const merged = mergeGraphs(graphs);
+  joinedCache.clear(); // merged maps are big: keep only the latest
+  joinedCache.set(joinKey, merged);
+  return merged;
+}
+
+async function findSinglePack(points) {
   let partial = null;
   for (const src of await sources()) {
     const known = src.bbox; // installed packs carry their bbox in the manifest
