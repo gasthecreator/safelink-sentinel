@@ -1,0 +1,39 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security problem? Do not use this form: see SECURITY.md and report it privately.
+  - type: dropdown
+    id: part
+    attributes:
+      label: Which part
+      options: [Phone app (Android), Phone app (iOS), Server, Dashboard, Docs, Not sure]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. ...\n2. ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit, and device or OS
+      placeholder: "main @ abc1234, Pixel 7 / Android 14"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: In the app, Diagnostics, Share status and log. Remove anything personal first.
+      render: text
