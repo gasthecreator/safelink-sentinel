@@ -46,6 +46,12 @@ class BlePeripheral {
     await native.start(SERVICE_UUID, MESSAGE_CHAR_UUID, IDENTITY_CHAR_UUID, identity);
   }
 
+  /** Change the profile other phones read from us (used to attach a proof to it). */
+  async updateIdentity(profile) {
+    if (!native || !native.updateIdentity) return;
+    await native.updateIdentity(bytesToBase64(utf8Encode(JSON.stringify(profile))));
+  }
+
   async stop() {
     if (native) await native.stop();
   }

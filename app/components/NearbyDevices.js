@@ -2,6 +2,7 @@
 import React from "react";
 import { View, Text, StyleSheet, FlatList } from "react-native";
 import * as Animatable from "react-native-animatable";
+import { isVerified } from "../services/mesh/peerTrust";
 
 function PeerRow({ peer, index }) {
   const strength =
@@ -23,6 +24,7 @@ function PeerRow({ peer, index }) {
             <Text style={styles.name}>{peer.name || "Unknown device"}</Text>
             <Text style={styles.meta}>
               {strength} • {peer.distance ? `${peer.distance}m` : "distance n/a"}
+              {peer.simulated ? "" : isVerified(peer) ? " • verified" : " • not verified"}
             </Text>
           </View>
         </View>
