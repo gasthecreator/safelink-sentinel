@@ -27,6 +27,9 @@ const PRIORITY_WORDS = { critical: N_("critical"), high: N_("high"), normal: N_(
 
 // small buttons stay easy to hit: the touch area is 10 points bigger on every side
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+// Footer links wrap onto several rows (more so in longer languages): vertical slop would make neighbouring rows overlap,
+// so each link carries its own vertical padding and only extends sideways.
+const LINK_SLOP = { top: 0, bottom: 0, left: 10, right: 10 };
 
 // Where the sender is: their own words first, then the coordinates if they shared any.
 function describeWhere(alert) {
@@ -358,9 +361,9 @@ export default function MeshHomeScreen({ navigation }) {
                     navigation.navigate("AlertDetail", {
                       alert: {
                         id: "alert-medical-001",
-                        title: "Medical support needed",
-                        description: "Field clinic in Zone A requires bandages, antibiotics and clean water.",
-                        address: "Zone A camp",
+                        title: t("Medical support needed"),
+                        description: t("Field clinic in Zone A requires bandages, antibiotics and clean water."),
+                        address: t("Zone A camp"),
                         location: {
                           latitude: 37.7749,
                           longitude: -122.4194,
@@ -372,12 +375,12 @@ export default function MeshHomeScreen({ navigation }) {
                   }
                 >
                   <MessageCard
-                    title="Medical support needed"
-                    body="Field clinic in Zone A requires bandages, antibiotics and clean water."
+                    title={t("Medical support needed")}
+                    body={t("Field clinic in Zone A requires bandages, antibiotics and clean water.")}
                     priority="critical"
-                    locationLabel="Zone A camp • ~2.3 km"
-                    address="Zone A camp"
-                    time="2 min ago"
+                    locationLabel={t("Zone A camp • ~2.3 km")}
+                    address={t("Zone A camp")}
+                    time={t("2 min ago")}
                   />
                 </TouchableOpacity>
                 
@@ -386,9 +389,9 @@ export default function MeshHomeScreen({ navigation }) {
                     navigation.navigate("AlertDetail", {
                       alert: {
                         id: "alert-water-001",
-                        title: "Water distribution point",
-                        description: "Clean water available near the old market for the next 3 hours.",
-                        address: "Old market",
+                        title: t("Water distribution point"),
+                        description: t("Clean water available near the old market for the next 3 hours."),
+                        address: t("Old market"),
                         location: {
                           latitude: 37.7849,
                           longitude: -122.4094,
@@ -400,34 +403,34 @@ export default function MeshHomeScreen({ navigation }) {
                   }
                 >
                   <MessageCard
-                    title="Water distribution point"
-                    body="Clean water available near the old market for the next 3 hours."
+                    title={t("Water distribution point")}
+                    body={t("Clean water available near the old market for the next 3 hours.")}
                     priority="normal"
-                    locationLabel="Old market • ~1.1 km"
-                    address="Old market"
-                    time="12 min ago"
+                    locationLabel={t("Old market • ~1.1 km")}
+                    address={t("Old market")}
+                    time={t("12 min ago")}
                   />
                 </TouchableOpacity>
               </>
             )}
           </View>
           <View style={styles.footerLinks}>
-            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Nearby")}>
+            <TouchableOpacity hitSlop={LINK_SLOP} style={styles.footerLink} accessibilityRole="button" onPress={() => navigation.navigate("Nearby")}>
               <Text style={styles.diagnosticsLink}>{t("Find help nearby")}</Text>
             </TouchableOpacity>
-            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("ReportRoad")}>
+            <TouchableOpacity hitSlop={LINK_SLOP} style={styles.footerLink} accessibilityRole="button" onPress={() => navigation.navigate("ReportRoad")}>
               <Text style={styles.diagnosticsLink}>{t("Report a road")}</Text>
             </TouchableOpacity>
-            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Places")}>
+            <TouchableOpacity hitSlop={LINK_SLOP} style={styles.footerLink} accessibilityRole="button" onPress={() => navigation.navigate("Places")}>
               <Text style={styles.diagnosticsLink}>{t("Saved places")}</Text>
             </TouchableOpacity>
-            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("OfflineMaps")}>
+            <TouchableOpacity hitSlop={LINK_SLOP} style={styles.footerLink} accessibilityRole="button" onPress={() => navigation.navigate("OfflineMaps")}>
               <Text style={styles.diagnosticsLink}>{t("Offline maps")}</Text>
             </TouchableOpacity>
-            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Settings")}>
+            <TouchableOpacity hitSlop={LINK_SLOP} style={styles.footerLink} accessibilityRole="button" onPress={() => navigation.navigate("Settings")}>
               <Text style={styles.diagnosticsLink}>{t("Settings")}</Text>
             </TouchableOpacity>
-            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Diagnostics")}>
+            <TouchableOpacity hitSlop={LINK_SLOP} style={styles.footerLink} accessibilityRole="button" onPress={() => navigation.navigate("Diagnostics")}>
               <Text style={styles.diagnosticsLink}>{t("Diagnostics")}</Text>
             </TouchableOpacity>
           </View>
@@ -447,6 +450,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   footerLinks: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 24 },
+  footerLink: { paddingVertical: 12 },
   diagnosticsLink: {
     color: "#64748B",
     textAlign: "center",

@@ -5,9 +5,12 @@ language (any Spanish setting, such as es-US or es-MX, gives Spanish; everything
 
 ## What is translated
 
-All the words the app shows and speaks: every screen, buttons, alerts and confirmations, accessibility labels, error
+All the words the app shows and speaks (the spoken directions use a voice for the language chosen in the app, not the phone's; if the phone has no such voice, the directions stay on screen and the screen says so), the "following your route" notification on Android, and: every screen, buttons, alerts and confirmations, accessibility labels, error
 messages, the turn-by-turn directions ("Gira a la izquierda hacia Main Street"), the voice prompts ("En 200 pies, ..."), the
 map's labels, distances and times (feet/miles or metres/kilometres in words), and the kinds of place on "Find help nearby".
+
+The permission questions the phone itself asks (Bluetooth, location) follow the **phone's** language, not the app's:
+iOS has Spanish text for them (`ios/SafeLinkScaffold/es.lproj`); Android's come from Android.
 
 ## What is not, and why
 
@@ -15,7 +18,8 @@ map's labels, distances and times (feet/miles or metres/kilometres in words), an
   Receiving a Spanish alert on an English phone shows Spanish text. Automatic translation would need the internet and
   could mistranslate an emergency.
 - **Names from the map**: streets, hospitals and other places keep the name OpenStreetMap has for them.
-- **Diagnostics** (the technical log screen, for developers) and the **server and dashboard** (a separate web app) are English only.
+- **The log lines** on the Diagnostics screen (for developers). Its labels and buttons are translated, but the text you share with support stays English so whoever reads it can follow it.
+- The **server and dashboard** (a separate web app) are English only.
   The server's keyword matching of help requests ("urgent", "bleeding"...) is English only; the phone's own "detect
   priority" button understands a few Spanish words as well.
 - Store listings and these documents.

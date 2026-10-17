@@ -115,7 +115,7 @@ export default function ReportRoadScreen() {
         </TouchableOpacity>
       ))}
 
-      <Text style={styles.label}>Note (optional)</Text>
+      <Text style={styles.label}>{t("Note (optional)")}</Text>
       <TextInput accessibilityLabel={t("Note about the road, optional")} style={styles.input} value={note} onChangeText={setNote} maxLength={MAX_NOTE} placeholder={t("e.g. Tree across both lanes")} placeholderTextColor="#94A3B8" />
 
       <Text style={styles.label}>{t("Where")}</Text>

@@ -1,0 +1,2 @@
+"NSBluetoothAlwaysUsageDescription" = "SafeLink Mesh uses Bluetooth to find nearby phones and pass emergency messages between them without internet or cell service.";
+"NSLocationWhenInUseUsageDescription" = "SafeLink Mesh uses your location to attach your position to a request for help, so people nearby can find you. This works without internet.";

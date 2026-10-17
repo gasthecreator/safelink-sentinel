@@ -7,7 +7,7 @@
 
 import { NativeModules } from "react-native";
 import { spokenDistance } from "../units/units.js";
-import { t } from "../i18n/i18n.js";
+import { t, getLanguage } from "../i18n/i18n.js";
 
 const native = NativeModules.SafeLinkGuidance || null;
 
@@ -26,7 +26,15 @@ export function keepAwake(on) {
  */
 export function startBackground() {
   try {
-    if (native && native.startBackground) native.startBackground();
+    // the notification is drawn by the phone, so its words go in already translated
+    if (native && native.startBackground) {
+      native.startBackground(
+        t("SafeLink directions"),
+        t("Following your route. Tap to open."),
+        t("Live directions"),
+        t("Shown while SafeLink is following your route"),
+      );
+    }
   } catch {
     // directions still work with the app in front
   }
@@ -54,7 +62,8 @@ export async function askNotificationPermission() {
 
 export function speak(text) {
   try {
-    if (native && typeof text === "string" && text) native.speak(text);
+    // spoken in the app's language, not the phone's
+    if (native && typeof text === "string" && text) native.speak(text, getLanguage());
   } catch {
     // speech is a nicety
   }
@@ -68,10 +77,10 @@ export function stopSpeaking() {
   }
 }
 
-/** True if this phone has a voice that can speak directions. */
+/** True if this phone has a voice for the app's current language. */
 export async function isSpeechAvailable() {
   try {
-    return native ? !!(await native.isSpeechAvailable()) : false;
+    return native ? !!(await native.isSpeechAvailable(getLanguage())) : false;
   } catch {
     return false;
   }
