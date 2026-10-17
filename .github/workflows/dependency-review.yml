@@ -1,0 +1,24 @@
+# Blocks a pull request that adds a dependency with a known high-severity vulnerability.
+name: Dependency review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Advisory until the repository's dependency graph is switched on (Settings > Code security > Dependency graph):
+      # without it the action cannot run at all. Remove `continue-on-error` once it is on, so the check blocks.
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        continue-on-error: true
+        with:
+          fail-on-severity: high

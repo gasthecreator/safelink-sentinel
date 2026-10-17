@@ -1,0 +1,33 @@
+# Dependency updates. Security updates are switched on in the repository settings; this file adds
+# regular version updates. Updates arrive grouped so a week's minor/patch bumps are one PR.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ["*"] }
+
+  # The root lockfile is what CI installs. server/ and safelink-dashboard/ keep their own lockfiles because
+  # render.yaml builds them from their own folders, so they are watched too.
+  - package-ecosystem: npm
+    directories: ["/", "/server", "/safelink-dashboard"]
+    schedule: { interval: weekly }
+    cooldown: { default-days: 3 } # let a fresh release prove itself before it is proposed
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gradle
+    directory: /app/android
+    schedule: { interval: monthly }
+    cooldown: { default-days: 3 }
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: cocoapods
+    directory: /app/ios
+    schedule: { interval: monthly }
+    cooldown: { default-days: 3 }
