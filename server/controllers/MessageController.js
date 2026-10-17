@@ -1,6 +1,7 @@
 // server/controllers/MessageController.js
 const MessageModel = require("../models/MessageModel");
 const PeerModel = require("../models/PeerModel");
+const validators = require("../utils/validators");
 
 async function list(req, res) {
   try {
@@ -42,33 +43,11 @@ async function list(req, res) {
 
 async function create(req, res) {
   try {
-    const msg = req.body;
-    
-    // Validate required fields
-    if (!msg.content) {
-      return res.status(400).json({
-        error: "Missing required field: content",
-        message: "Message must include 'content' field",
-      });
-    }
-    
-    if (!msg.senderId) {
-      return res.status(400).json({
-        error: "Missing required field: senderId",
-        message: "Message must include 'senderId' field",
-      });
-    }
-    
-    // Ensure timestamp
-    if (!msg.timestamp) {
-      msg.timestamp = new Date().toISOString();
-    }
-    
-    // Ensure message ID
-    if (!msg.id) {
-      msg.id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    }
-    
+    const checked = validators.message(req.body);
+    if (!checked.ok) return res.status(400).json({ error: checked.error, message: checked.message });
+    const msg = checked.value;
+    if (!msg.id) msg.id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
     // If recipientId is provided, verify peer exists
     if (msg.recipientId) {
       const recipient = await PeerModel.getById(msg.recipientId);

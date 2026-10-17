@@ -1,17 +1,13 @@
 // server/controllers/DisasterSentinelController.js
 const DisasterSentinelModel = require("../models/DisasterSentinelModel");
 const DisasterSentinelService = require("../services/DisasterSentinelService");
+const validators = require("../utils/validators");
 
 async function subscribeUser(req, res) {
   try {
-    const { user_id: userId, name, lat: bodyLat, lon: bodyLon } = req.body;
-
-    if (!userId || !name) {
-      return res.status(400).json({
-        error: "Missing required fields",
-        message: "Both 'user_id' and 'name' are required",
-      });
-    }
+    const checked = validators.sentinelSubscribe(req.body);
+    if (!checked.ok) return res.status(400).json({ error: checked.error, message: checked.message });
+    const { userId, name, lat: bodyLat, lon: bodyLon } = checked.value;
 
     let lat = bodyLat;
     let lon = bodyLon;

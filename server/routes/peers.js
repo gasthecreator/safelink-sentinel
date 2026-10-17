@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const PeerController = require("../controllers/PeerController");
+const { requireAdmin } = require("../middleware/security");
 
 // GET /api/peers - Get all peers (with optional ?active=true filter)
 router.get("/", PeerController.list);
@@ -13,6 +14,6 @@ router.get("/:id", PeerController.getById);
 router.post("/", PeerController.register);
 
 // DELETE /api/peers/:id - Remove a peer
-router.delete("/:id", PeerController.remove);
+router.delete("/:id", requireAdmin(), PeerController.remove); // removes someone else's entry: admin only
 
 module.exports = router;

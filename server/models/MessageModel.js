@@ -1,8 +1,11 @@
 // server/models/MessageModel.js
 const fs = require("fs");
 const path = require("path");
+const { dataFile } = require("../utils/dataPath");
+const { writeJsonAtomic } = require("../utils/atomicFile");
 
-const DB_PATH = path.join(process.cwd(), "data", "messages.json");
+const DB_PATH = dataFile("messages.json", path.join(process.cwd(), "data"));
+const MAX_RECORDS = 5000; // the oldest go first, so the file cannot grow without end
 const DATA_DIR = path.dirname(DB_PATH);
 
 // Ensure data directory exists
@@ -23,7 +26,8 @@ function load() {
 }
 
 function save(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+  if (data.messages && data.messages.length > MAX_RECORDS) data.messages = data.messages.slice(-MAX_RECORDS);
+  writeJsonAtomic(DB_PATH, data);
 }
 
 module.exports = {

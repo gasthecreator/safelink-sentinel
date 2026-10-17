@@ -1,8 +1,5 @@
 // server/index.js
 
-const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
 const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
@@ -21,64 +18,11 @@ if (!fs.existsSync(firstAidImagesDir)) {
   console.log(`[SafeLink][Server] 📁 Created first-aid-images directory: ${firstAidImagesDir}`);
 }
 
-const messagesRouter = require("./routes/messages");
-const peersRouter = require("./routes/peers");
-const logsRouter = require("./routes/logs");
-const rescuesRouter = require("./routes/rescues");
-const helpRequestsRouter = require("./routes/helpRequests");
-const firstAidRouter = require("./routes/firstAid");
-const medaiRouter = require("./routes/medai");
-const routesRouter = require("./routes/routes");
-const locationUpdatesRouter = require("./routes/locationUpdates");
-const weatherRouter = require("./routes/weather");
-const configRouter = require("./routes/config");
-const disasterSentinelRouter = require("./routes/disasterSentinel");
 const DisasterSentinelService = require("./services/DisasterSentinelService");
+const { createApp } = require("./app");
 
-const app = express();
+const app = createApp();
 const PORT = process.env.PORT || 4000;
-
-// Needed so req.ip resolves to the real client address (used for IP
-// geolocation fallback) when running behind a platform proxy like Render.
-app.set("trust proxy", true);
-
-// CORS configuration
-const allowedOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
-  : ['http://localhost:5173', 'http://localhost:3000'];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Allow all for now, can restrict in production
-    }
-  },
-  credentials: true
-}));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", ts: new Date().toISOString() });
-});
-
-app.use("/api/messages", messagesRouter);
-app.use("/api/peers", peersRouter);
-app.use("/logs", logsRouter);
-app.use("/api/rescues", rescuesRouter);
-app.use("/api/help-requests", helpRequestsRouter);
-app.use("/api/first-aid", firstAidRouter);
-app.use("/api/medai", medaiRouter);
-app.use("/api/routes", routesRouter);
-app.use("/api/location-updates", locationUpdatesRouter);
-app.use("/api/weather", weatherRouter);
-app.use("/api/config", configRouter);
-app.use("/api/sentinel", disasterSentinelRouter);
 
 const FETCH_INTERVAL_MS = 30 * 60 * 1000; // poll GDACS every 30 minutes
 const PROCESS_INTERVAL_MS = 5 * 60 * 1000; // re-check user proximity every 5 minutes
