@@ -90,6 +90,16 @@ class HealthMonitor {
     }
   }
 
+  /** Forget the history (used when the person erases their data). */
+  async reset() {
+    this.lastSnapshot = null;
+    try {
+      await AsyncStorage.removeItem(HEALTH_HISTORY_KEY);
+    } catch {
+      // nothing to remove
+    }
+  }
+
   getLastSnapshot() {
     return this.lastSnapshot;
   }

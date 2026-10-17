@@ -6,7 +6,7 @@
 import nacl from "tweetnacl";
 import { bytesToBase64, base64ToBytes, bytesToHex } from "../ble/codec.js";
 
-import { getSecret, setSecret, isSecure } from "./SecureStore.js";
+import { getSecret, setSecret, removeSecret, isSecure } from "./SecureStore.js";
 
 // Before private keys moved to the keychain, the identity lived in AsyncStorage.
 const LEGACY_STORAGE_KEY = "@safelink_identity";
@@ -102,6 +102,21 @@ class IdentityManager {
     await setSecret(JSON.stringify(identity));
     console.log("[SafeLink] 🆔 Created new device identity");
     return identity;
+  }
+
+  /**
+   * Throw away this phone's identity (its private keys, in the keychain) so a new one is made the next
+   * time it is needed. Other phones will see a new device.
+   */
+  async reset() {
+    this.identity = null;
+    this.loading = null;
+    await removeSecret();
+    try {
+      await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch {
+      // there was no older copy
+    }
   }
 
   async getDeviceId() {

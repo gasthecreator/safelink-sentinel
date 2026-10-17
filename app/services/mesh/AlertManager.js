@@ -249,6 +249,11 @@ class AlertManager {
   // ===== INCOMING (from other nodes) =====
 
   // Turn a verified message received over the mesh into something the UI shows.
+  /** Forget received alerts (used when the person erases their data). */
+  reset() {
+    this.incomingAlerts = [];
+  }
+
   async handleIncoming(msg) {
     // Everything here came from another phone. A valid signature shows who sent it, not that it
     // is sensible: text is cleaned and capped, the priority must be a known one, positions are validated.
