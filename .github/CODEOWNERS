@@ -1,0 +1,12 @@
+# Last matching pattern wins. This is currently a one-maintainer project, so one owner.
+# When a second maintainer joins, add them here and require code-owner review in the branch ruleset.
+
+*                              @gasthecreator
+
+# Security-sensitive: CI, release signing, policy, the signed map catalog and the mesh's crypto
+/.github/                      @gasthecreator
+/SECURITY.md                   @gasthecreator
+/docs/SECURITY.md              @gasthecreator
+/app/services/crypto/          @gasthecreator
+/app/services/maps/catalog.js  @gasthecreator
+/app/scripts/                  @gasthecreator
