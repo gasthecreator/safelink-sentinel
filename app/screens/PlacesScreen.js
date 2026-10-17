@@ -20,6 +20,9 @@ import { parseCoordinates } from "../services/location/places";
 import { getPositionForAlert } from "../services/location/LocationService";
 import { describePosition, describeLocationOutcome } from "../services/location/position";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 export default function PlacesScreen() {
   const navigation = useNavigation();
   const [places, setPlaces] = useState([]);
@@ -94,10 +97,10 @@ export default function PlacesScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 40 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Saved places</Text>
+        <Text accessibilityRole="header" style={styles.title}>Saved places</Text>
         <Text style={styles.intro}>
           Name places you can use as your position when GPS can't get a fix, such as indoors. Save them
           while you have a fix. They stay on this phone and are only shared when you attach one to a
@@ -107,26 +110,30 @@ export default function PlacesScreen() {
         <View style={styles.card}>
           <Text style={styles.label}>Name</Text>
           <TextInput
+            accessibilityLabel="Name for this place"
             style={styles.input}
             value={name}
             onChangeText={setName}
             placeholder="e.g. School shelter"
+            placeholderTextColor="#64748B"
             maxLength={60}
           />
-          <TouchableOpacity style={[styles.button, busy && styles.disabled]} disabled={busy} onPress={saveCurrent}>
+          <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, busy && styles.disabled]} disabled={busy} onPress={saveCurrent}>
             <Text style={styles.buttonText}>Save my current location</Text>
           </TouchableOpacity>
 
           <Text style={[styles.label, { marginTop: 16 }]}>Or type coordinates (decimal degrees)</Text>
           <TextInput
+            accessibilityLabel="Coordinates, latitude then longitude"
             style={styles.input}
             value={coords}
             onChangeText={setCoords}
             placeholder="30.5, -92.2"
+            placeholderTextColor="#64748B"
             autoCapitalize="none"
             autoCorrect={false}
           />
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
             style={[styles.button, styles.secondary, busy && styles.disabled]}
             disabled={busy}
             onPress={saveTyped}
@@ -136,7 +143,7 @@ export default function PlacesScreen() {
           {message ? <Text style={styles.message}>{message}</Text> : null}
         </View>
 
-        <Text style={styles.sectionTitle}>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>
           Your places ({places.length}/{MAX_PLACES})
         </Text>
         {places.length === 0 ? (
@@ -154,7 +161,7 @@ export default function PlacesScreen() {
                     {place.kind === "manual" ? "  typed in" : ""}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => confirmDelete(place)}>
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => confirmDelete(place)}>
                   <Text style={styles.delete}>Delete</Text>
                 </TouchableOpacity>
               </View>
@@ -168,7 +175,7 @@ export default function PlacesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC", paddingTop: 56, paddingHorizontal: 16 },
-  back: { color: "#3B82F6", fontSize: 16, fontWeight: "600", marginBottom: 6 },
+  back: { color: "#2563EB", fontSize: 16, fontWeight: "600", marginBottom: 6 },
   title: { fontSize: 26, fontWeight: "800", color: "#0F172A", marginBottom: 6 },
   intro: { color: "#475569", fontSize: 14, lineHeight: 20, marginBottom: 14 },
   card: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 16 },
@@ -183,7 +190,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: "#0F172A",
   },
-  button: { backgroundColor: "#10B981", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  button: { backgroundColor: "#047857", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
   secondary: { backgroundColor: "#E2E8F0" },
   disabled: { opacity: 0.5 },
   buttonText: { color: "#fff", fontWeight: "700", fontSize: 15 },

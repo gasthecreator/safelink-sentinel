@@ -13,6 +13,9 @@ import { useUnits } from "../services/units/UnitStore";
 import { listPacks } from "../services/navigation/packs";
 import { MAP_CATALOG_PUBLIC_KEY, CONFIRM_DOWNLOAD_ABOVE_BYTES } from "../constants/maps";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 const mb = (bytes) => (bytes < 1048576 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1048576).toFixed(1)} MB`);
 
 export default function OfflineMapsScreen() {
@@ -112,16 +115,16 @@ export default function OfflineMapsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
         <Text style={styles.back}>‹ Back</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>Offline maps</Text>
+      <Text accessibilityRole="header" style={styles.title}>Offline maps</Text>
       <Text style={styles.intro}>
         Download maps while you have internet. Later, directions to someone who sent an alert work with no signal at all.
       </Text>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>On this phone</Text>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>On this phone</Text>
         {installed.length === 0 && bundled.length === 0 ? <Text style={styles.empty}>No maps yet.</Text> : null}
         {bundled.map((b) => (
           <View key={b.id} style={styles.row}>
@@ -138,7 +141,7 @@ export default function OfflineMapsScreen() {
               <Text style={styles.meta}>{mb(e.sizeBytes)} · version {e.version}</Text>
               <Text style={styles.meta}>{e.attribution}</Text>
             </View>
-            <TouchableOpacity disabled={busy} onPress={() => askRemove(e)}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" disabled={busy} onPress={() => askRemove(e)}>
               <Text style={[styles.link, { color: "#DC2626" }]}>Delete</Text>
             </TouchableOpacity>
           </View>
@@ -147,17 +150,17 @@ export default function OfflineMapsScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Available to download</Text>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>Available to download</Text>
         {!enabled ? (
           <Text style={styles.empty}>Map downloads are not set up in this version of the app yet.</Text>
         ) : (
           <>
-            <TouchableOpacity style={[styles.button, (checking || busy) && styles.disabled]} disabled={checking || busy} onPress={() => check(false)}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, (checking || busy) && styles.disabled]} disabled={checking || busy} onPress={() => check(false)}>
               {checking ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{offers ? "Check again" : "Check for maps"}</Text>}
             </TouchableOpacity>
             {offers && offers.length === 0 ? <Text style={styles.empty}>No maps are listed right now.</Text> : null}
             {offers && offers.length > 0 ? (
-              <TouchableOpacity onPress={findMe} disabled={locating}>
+              <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={findMe} disabled={locating}>
                 <Text style={styles.link2}>{locating ? "Finding you..." : here ? "Maps near you (tap to refresh)" : "Show maps near me"}</Text>
               </TouchableOpacity>
             ) : null}
@@ -181,11 +184,11 @@ export default function OfflineMapsScreen() {
                     ) : null}
                   </View>
                   {mine ? (
-                    <TouchableOpacity onPress={() => PackStore.cancel()}><Text style={styles.link}>Cancel</Text></TouchableOpacity>
+                    <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => PackStore.cancel()}><Text style={styles.link}>Cancel</Text></TouchableOpacity>
                   ) : status === "installed" ? (
                     <Text style={styles.meta}>Installed</Text>
                   ) : (
-                    <TouchableOpacity disabled={busy} onPress={() => askDownload(entry)}>
+                    <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" disabled={busy} onPress={() => askDownload(entry)}>
                       <Text style={[styles.link, busy && styles.disabled]}>{status === "update" ? "Update" : "Download"}</Text>
                     </TouchableOpacity>
                   )}
@@ -206,7 +209,7 @@ export default function OfflineMapsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC", paddingTop: 56, paddingHorizontal: 16 },
-  back: { color: "#3B82F6", fontSize: 16, fontWeight: "600", marginBottom: 6 },
+  back: { color: "#2563EB", fontSize: 16, fontWeight: "600", marginBottom: 6 },
   title: { fontSize: 26, fontWeight: "800", color: "#0F172A", marginBottom: 6 },
   intro: { color: "#475569", fontSize: 14, lineHeight: 20, marginBottom: 14 },
   card: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 16 },
@@ -215,11 +218,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#E2E8F0", marginTop: 8 },
   name: { fontSize: 15, fontWeight: "600", color: "#0F172A" },
   meta: { color: "#64748B", fontSize: 12, marginTop: 2 },
-  link: { color: "#3B82F6", fontWeight: "700", fontSize: 15, paddingLeft: 12 },
-  button: { backgroundColor: "#10B981", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  link: { color: "#2563EB", fontWeight: "700", fontSize: 15, paddingLeft: 12 },
+  button: { backgroundColor: "#047857", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
   disabled: { opacity: 0.5 },
   buttonText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  link2: { color: "#3B82F6", fontWeight: "600", fontSize: 14, marginTop: 12 },
+  link2: { color: "#2563EB", fontWeight: "600", fontSize: 14, marginTop: 12 },
   near: { color: "#059669", fontSize: 12, fontWeight: "700", marginTop: 2 },
   error: { marginTop: 12, color: "#B91C1C", fontSize: 13, lineHeight: 18 },
   footnote: { color: "#64748B", fontSize: 12, lineHeight: 17 },

@@ -27,6 +27,9 @@ import { describePosition, mapsUrl } from "../services/location/position.js";
 import { formatDistance } from "../services/units/units";
 import { useUnits } from "../services/units/UnitStore";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 const HELPER_ID = "device-volunteer"; // later: replace with real identity
 
 // The in-app map needs an online map provider (on Android a Google Maps API key,
@@ -223,10 +226,10 @@ export default function AlertDetailScreen() {
     };
     return (
       <View style={styles.textOnlyContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
           <Text style={styles.textOnlyBack}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.textOnlyTitle}>{alert.title || "Alert"}</Text>
+        <Text accessibilityRole="header" style={styles.textOnlyTitle}>{alert.title || "Alert"}</Text>
         {alert.priority ? (
           <Text style={styles.textOnlyMeta}>Priority: {String(alert.priority).toUpperCase()}</Text>
         ) : null}
@@ -234,14 +237,14 @@ export default function AlertDetailScreen() {
         <Text style={styles.textOnlyBody}>{alert.description || "No description available"}</Text>
 
         {alert.location ? (
-          <TouchableOpacity style={styles.directionsButton} onPress={() => navigation.navigate("Navigation", { alert })}>
+          <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={styles.directionsButton} onPress={() => navigation.navigate("Navigation", { alert })}>
             <Text style={styles.finderButtonText}>Get directions</Text>
             <Text style={styles.finderButtonHint}>Offline: worked out on this phone, no internet needed</Text>
           </TouchableOpacity>
         ) : null}
 
         {alert.senderId ? (
-          <TouchableOpacity style={styles.finderButton} onPress={() => navigation.navigate("Finder", { alert })}>
+          <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={styles.finderButton} onPress={() => navigation.navigate("Finder", { alert })}>
             <Text style={styles.finderButtonText}>Find them by Bluetooth</Text>
             <Text style={styles.finderButtonHint}>Works once you are within a few tens of metres</Text>
           </TouchableOpacity>
@@ -269,7 +272,7 @@ export default function AlertDetailScreen() {
                 Only an approximate area: the sender may be much closer or further than this.
               </Text>
             ) : null}
-            <TouchableOpacity style={styles.positionButton} onPress={openInMaps}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={styles.positionButton} onPress={openInMaps}>
               <Text style={styles.positionButtonText}>Open in Maps app</Text>
             </TouchableOpacity>
           </View>
@@ -331,7 +334,7 @@ export default function AlertDetailScreen() {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.errorText}>No location data available for this alert.</Text>
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
@@ -381,7 +384,7 @@ export default function AlertDetailScreen() {
 
       <View style={styles.infoCard}>
         <View style={styles.header}>
-          <Text style={styles.title}>{alert.title || "Rescue Alert"}</Text>
+          <Text accessibilityRole="header" style={styles.title}>{alert.title || "Rescue Alert"}</Text>
           {alert.priority && (
             <View style={[styles.priorityBadge, styles[`priorityBadge--${alert.priority}`]]}>
               <Text style={styles.priorityText}>{alert.priority.toUpperCase()}</Text>
@@ -412,7 +415,7 @@ export default function AlertDetailScreen() {
 
         <View style={styles.actionsRow}>
           {!accepted ? (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
               style={[styles.button, styles.acceptButton]}
               onPress={handleAcceptRescue}
             >
@@ -424,7 +427,7 @@ export default function AlertDetailScreen() {
             </View>
           )}
 
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
             style={[styles.button, styles.mapsButton]}
             onPress={openExternalMap}
           >
@@ -432,7 +435,7 @@ export default function AlertDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
           style={[
             styles.arrivedButton,
             arrived && { backgroundColor: "#16A34A" },
@@ -445,7 +448,7 @@ export default function AlertDetailScreen() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
           style={styles.backLink}
           onPress={() => navigation.goBack()}
         >
@@ -463,7 +466,7 @@ const styles = StyleSheet.create({
   textOnlyBody: { color: "#E2E8F0", fontSize: 17, lineHeight: 24, marginVertical: 16 },
   textOnlyMeta: { color: "#94A3B8", fontSize: 14, marginBottom: 4 },
   directionsButton: { backgroundColor: "#2563EB", borderRadius: 12, padding: 14, marginBottom: 12 },
-  finderButton: { backgroundColor: "#16A34A", borderRadius: 12, padding: 14, marginBottom: 12 },
+  finderButton: { backgroundColor: "#15803D", borderRadius: 12, padding: 14, marginBottom: 12 },
   finderButtonText: { color: "#fff", fontSize: 18, fontWeight: "800" },
   finderButtonHint: { color: "#DCFCE7", fontSize: 13, marginTop: 2 },
   positionBox: { backgroundColor: "#111C30", borderRadius: 12, padding: 14, marginTop: 8 },
@@ -601,7 +604,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F97316",
   },
   mapsButton: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#2563EB",
   },
   buttonText: {
     color: "#FFFFFF",
@@ -611,7 +614,7 @@ const styles = StyleSheet.create({
   },
   arrivedButton: {
     marginTop: 0,
-    backgroundColor: "#10B981",
+    backgroundColor: "#047857",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
@@ -673,7 +676,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   backButton: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#2563EB",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,

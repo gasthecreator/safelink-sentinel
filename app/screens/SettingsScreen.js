@@ -7,6 +7,9 @@ import { useNavigation } from "@react-navigation/native";
 import { useUnits, setPreference } from "../services/units/UnitStore";
 import { formatDistance } from "../services/units/units";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 const CHOICES = [
   ["auto", "Automatic", "Follows this phone's region"],
   ["imperial", "Miles and feet", "For example 0.4 mi, 300 ft"],
@@ -19,15 +22,15 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
         <Text style={styles.back}>‹ Back</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>Settings</Text>
+      <Text accessibilityRole="header" style={styles.title}>Settings</Text>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Distances</Text>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>Distances</Text>
         {CHOICES.map(([value, label, hint]) => (
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={HIT_SLOP}
             key={value}
             style={styles.row}
             onPress={() => setPreference(value)}
@@ -50,12 +53,12 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC", paddingTop: 56, paddingHorizontal: 16 },
-  back: { color: "#3B82F6", fontSize: 16, fontWeight: "600", marginBottom: 6 },
+  back: { color: "#2563EB", fontSize: 16, fontWeight: "600", marginBottom: 6 },
   title: { fontSize: 26, fontWeight: "800", color: "#0F172A", marginBottom: 14 },
   card: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 16 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A", marginBottom: 8 },
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#E2E8F0" },
-  radio: { fontSize: 20, color: "#3B82F6", width: 30 },
+  radio: { fontSize: 20, color: "#2563EB", width: 30 },
   name: { fontSize: 15, fontWeight: "600", color: "#0F172A" },
   meta: { color: "#64748B", fontSize: 12, marginTop: 4 },
 });

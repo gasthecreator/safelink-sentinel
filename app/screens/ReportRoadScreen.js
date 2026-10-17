@@ -11,6 +11,9 @@ import { listPlaces } from "../services/location/PlaceStore";
 import { describeLocationOutcome, describePosition } from "../services/location/position";
 import { MAX_NOTE } from "../services/roads/reports";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 const KINDS = [
   { id: "blocked", label: "Blocked", hint: "Cars or people cannot get through here", color: "#DC2626" },
   { id: "passable", label: "Got through", hint: "I just came along here and it is open", color: "#16A34A" },
@@ -83,10 +86,10 @@ export default function ReportRoadScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
-      <TouchableOpacity onPress={() => navigation.goBack()}>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
         <Text style={styles.back}>← Back</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>Report a road</Text>
+      <Text accessibilityRole="header" style={styles.title}>Report a road</Text>
       <Text style={styles.intro}>
         Tell people nearby what you can see where you are. Phones that hear it will route around a
         blocked road. Only report what you have seen yourself: other people may rely on it.
@@ -94,19 +97,19 @@ export default function ReportRoadScreen() {
 
       <Text style={styles.label}>What is it like here?</Text>
       {KINDS.map((k) => (
-        <TouchableOpacity key={k.id} style={[styles.kind, kind === k.id && { borderColor: k.color, backgroundColor: "#111C30" }]} onPress={() => setKind(k.id)}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ selected: kind === k.id }} accessibilityLabel={`${k.label}. ${k.hint}`} key={k.id} style={[styles.kind, kind === k.id && { borderColor: k.color, backgroundColor: "#111C30" }]} onPress={() => setKind(k.id)}>
           <Text style={[styles.kindLabel, { color: k.color }]}>{kind === k.id ? "● " : "○ "}{k.label}</Text>
           <Text style={styles.kindHint}>{k.hint}</Text>
         </TouchableOpacity>
       ))}
 
       <Text style={styles.label}>Note (optional)</Text>
-      <TextInput style={styles.input} value={note} onChangeText={setNote} maxLength={MAX_NOTE} placeholder="e.g. Tree across both lanes" placeholderTextColor="#64748B" />
+      <TextInput accessibilityLabel="Note about the road, optional" style={styles.input} value={note} onChangeText={setNote} maxLength={MAX_NOTE} placeholder="e.g. Tree across both lanes" placeholderTextColor="#94A3B8" />
 
       <Text style={styles.label}>Where</Text>
       <View style={styles.row}>
         {[["gps", "Here (GPS)"], ["place", "A saved place"]].map(([v, l]) => (
-          <TouchableOpacity key={v} style={[styles.chip, source === v && styles.chipActive]} onPress={() => setSource(v)}>
+          <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ selected: source === v }} key={v} style={[styles.chip, source === v && styles.chipActive]} onPress={() => setSource(v)}>
             <Text style={[styles.chipText, source === v && styles.chipTextActive]}>{l}</Text>
           </TouchableOpacity>
         ))}
@@ -116,7 +119,7 @@ export default function ReportRoadScreen() {
           <Text style={styles.hint}>No saved places yet. Save one from Saved places on the home screen.</Text>
         ) : (
           places.map((p) => (
-            <TouchableOpacity key={p.id} style={[styles.place, p.id === placeId && styles.placeActive]} onPress={() => setPlaceId(p.id)}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ selected: p.id === placeId }} key={p.id} style={[styles.place, p.id === placeId && styles.placeActive]} onPress={() => setPlaceId(p.id)}>
               <Text style={styles.placeName}>{p.id === placeId ? "● " : "○ "}{p.name}</Text>
               <Text style={styles.hint}>{describePosition(p)?.coords}</Text>
             </TouchableOpacity>
@@ -125,7 +128,7 @@ export default function ReportRoadScreen() {
       ) : null}
       <Text style={styles.hint}>Every nearby phone that hears this can see where you are.</Text>
 
-      <TouchableOpacity style={[styles.button, (!kind || busy) && styles.disabled]} disabled={!kind || busy} onPress={send}>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, (!kind || busy) && styles.disabled]} disabled={!kind || busy} onPress={send}>
         <Text style={styles.buttonText}>{busy ? "Working..." : "Send report"}</Text>
       </TouchableOpacity>
       {result ? <Text style={[styles.result, !result.ok && { color: "#F87171" }]}>{result.text}</Text> : null}
@@ -151,8 +154,8 @@ const styles = StyleSheet.create({
   place: { backgroundColor: "#111C30", borderRadius: 10, padding: 12, marginTop: 8, borderWidth: 1, borderColor: "#1E293B" },
   placeActive: { borderColor: "#2563EB" },
   placeName: { color: "#F8FAFC", fontSize: 15, fontWeight: "600" },
-  hint: { color: "#64748B", fontSize: 12.5, marginTop: 6 },
-  button: { backgroundColor: "#16A34A", borderRadius: 12, padding: 16, alignItems: "center", marginTop: 20 },
+  hint: { color: "#94A3B8", fontSize: 12.5, marginTop: 6 },
+  button: { backgroundColor: "#15803D", borderRadius: 12, padding: 16, alignItems: "center", marginTop: 20 },
   disabled: { opacity: 0.4 },
   buttonText: { color: "#fff", fontSize: 17, fontWeight: "800" },
   result: { color: "#86EFAC", fontSize: 14, lineHeight: 20, marginTop: 14 },

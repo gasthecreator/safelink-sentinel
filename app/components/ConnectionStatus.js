@@ -1,9 +1,16 @@
 // app/components/ConnectionStatus.js
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, AccessibilityInfo } from "react-native";
 import * as Animatable from "react-native-animatable";
 
 export default function ConnectionStatus({ health, peersCount }) {
+  // the status dot pulses for ever; people who asked their phone for less motion do not get that
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => sub && sub.remove && sub.remove();
+  }, []);
   const status = health?.reliabilityScore || "Good";
   const successRate = health?.successRate || 0;
   
@@ -11,11 +18,18 @@ export default function ConnectionStatus({ health, peersCount }) {
   if (status === "Warning") color = "#F59E0B";
   if (status === "Critical") color = "#EF4444";
 
+  const summary =
+    status === "Critical" ? "Unstable connection" : status === "Warning" ? "Some delays" : "Connected and stable";
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible
+      accessibilityRole="summary"
+      accessibilityLabel={`Mesh network: ${summary}. ${peersCount} ${peersCount === 1 ? "device" : "devices"} nearby. ${successRate} percent of messages delivered.`}
+    >
       <View style={styles.left}>
         <Animatable.View
-          animation="pulse"
+          animation={reduceMotion ? undefined : "pulse"}
           iterationCount="infinite"
           duration={1500}
           easing="ease-in-out"
@@ -60,6 +74,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "space-between",
+    // with very large text the two halves go on separate lines instead of being cut off
+    flexWrap: "wrap",
+    rowGap: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -69,6 +86,7 @@ const styles = StyleSheet.create({
   left: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 1,
   },
   dot: {
     width: 14,

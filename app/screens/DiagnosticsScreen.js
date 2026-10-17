@@ -27,6 +27,9 @@ import {
   toText,
 } from "../services/diagnostics/LogBuffer";
 
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+
 const yesNo = (value) => (value ? "yes" : "no");
 
 async function collectStatus() {
@@ -86,10 +89,10 @@ export default function DiagnosticsScreen() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
         <Text style={styles.back}>← Back</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>Diagnostics</Text>
+      <Text accessibilityRole="header" style={styles.title}>Diagnostics</Text>
 
       <View style={styles.card}>
         {status.map(([label, value], i) => (
@@ -101,10 +104,10 @@ export default function DiagnosticsScreen() {
       </View>
 
       <View style={styles.buttons}>
-        <TouchableOpacity style={styles.button} onPress={shareLogs}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={styles.button} onPress={shareLogs}>
           <Text style={styles.buttonText}>Share status + log</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.button, styles.secondary]} onPress={clearEntries}>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, styles.secondary]} onPress={clearEntries}>
           <Text style={[styles.buttonText, styles.secondaryText]}>Clear log</Text>
         </TouchableOpacity>
       </View>
@@ -135,7 +138,7 @@ const MONO = Platform.OS === "ios" ? "Menlo" : "monospace";
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC", paddingTop: 56, paddingHorizontal: 16 },
-  back: { color: "#3B82F6", fontSize: 16, fontWeight: "600", marginBottom: 6 },
+  back: { color: "#2563EB", fontSize: 16, fontWeight: "600", marginBottom: 6 },
   title: { fontSize: 26, fontWeight: "800", color: "#0F172A", marginBottom: 10 },
   card: { backgroundColor: "#fff", borderRadius: 12, padding: 12, marginBottom: 10 },
   row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
@@ -143,7 +146,7 @@ const styles = StyleSheet.create({
   value: { color: "#0F172A", fontSize: 13, fontWeight: "600", flexShrink: 1, textAlign: "right" },
   buttons: { flexDirection: "row", marginBottom: 10 },
   button: {
-    backgroundColor: "#10B981",
+    backgroundColor: "#047857",
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
