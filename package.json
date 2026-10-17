@@ -10,9 +10,17 @@
     "app"
   ],
   "scripts": {
-    "start": "scripts\\start.bat",
-    "stop": "scripts\\stop.bat",
-    "start:app": "scripts\\start-app.bat"
+    "start": "node scripts/dev.js",
+    "dev": "node scripts/dev.js",
+    "dev:server": "npm start -w server",
+    "dev:dashboard": "npm run dev -w safelink-dashboard",
+    "dev:app": "npm start -w app",
+    "build:dashboard": "npm run build -w safelink-dashboard",
+    "test": "npm run test:server && npm run test:app",
+    "test:server": "npm test -w server",
+    "test:app": "npm test -w app -- --ci",
+    "start:windows": "scripts\\start.bat",
+    "stop:windows": "scripts\\stop.bat"
   },
   "keywords": [
     "mesh-network",
@@ -23,5 +31,16 @@
     "emergency-communications"
   ],
   "author": "SafeLink Team",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18",
+    "npm": ">=9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gasthecreator/safelink-sentinel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gasthecreator/safelink-sentinel/issues"
+  }
 }

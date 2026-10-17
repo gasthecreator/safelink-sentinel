@@ -1,5 +1,7 @@
 # Pre-Deployment Checklist
 
+> **Archived working notes.** Kept for history; the current deployment guide is [docs/DEPLOYMENT.md](../DEPLOYMENT.md), and `render.yaml` is the source of truth for the service settings.
+
 Use this checklist to verify all features work before deploying to Render.
 
 ## ✅ Configuration Fixes Completed

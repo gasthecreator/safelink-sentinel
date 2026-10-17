@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .env
 *.log
 data/
@@ -18,3 +18,20 @@ __pycache__/
 app/android/keystore.properties
 *.jks
 app/android/app/release.keystore
+
+# Environment files: examples are tracked, real ones never
+.env.*
+!.env.example
+server/.env
+
+# Test and tooling output
+coverage/
+.nyc_output/
+
+# Editors and OS
+.idea/
+.vscode/
+Thumbs.db
+
+# The standard public React Native debug keystore is intentionally tracked
+!app/android/app/debug.keystore
