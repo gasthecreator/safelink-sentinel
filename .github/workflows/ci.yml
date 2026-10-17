@@ -55,7 +55,7 @@ jobs:
       - run: npm run build -w safelink-dashboard
 
   server:
-    name: Server - syntax check
+    name: Server - syntax check and tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -65,9 +65,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      # The server has no test suite yet; at minimum every file must parse.
       - name: node --check every server source file
         run: git ls-files 'server/*.js' | xargs -n1 node --check
+      # Security headers, CORS, rate limits, admin gate, input validation (runs the real app on a random port).
+      - name: Server tests
+        run: npm test --prefix server
 
   android:
     name: Android - release build

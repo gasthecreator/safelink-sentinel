@@ -4,6 +4,7 @@
 // Everything here is plain JavaScript on arrays: no network, no native code.
 
 import { loadPack, modeIndex, WALK, DRIVE } from "./pack.js";
+import { t, N_ } from "../i18n/i18n.js";
 
 const R = 6371008.8;
 const rad = (d) => (d * Math.PI) / 180;
@@ -22,7 +23,7 @@ export function bearingDeg(lat1, lon1, lat2, lon2) {
   return (deg(Math.atan2(y, x)) + 360) % 360;
 }
 
-const COMPASS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
+const COMPASS = [N_("north"), N_("north-east"), N_("east"), N_("south-east"), N_("south"), N_("south-west"), N_("west"), N_("north-west")];
 export const compassName = (bearing) => COMPASS[Math.round(bearing / 45) % 8];
 
 
@@ -135,11 +136,11 @@ function edgeSpeed(graph, e, mode) {
 }
 
 const PLAIN_NAME = {
-  footway: "the footpath", path: "the path", steps: "the steps", track: "the track",
-  service: "the service road", pedestrian: "the pedestrian way", cycleway: "the cycle path",
-  residential: "the street", unclassified: "the road", living_street: "the street",
+  footway: N_("the footpath"), path: N_("the path"), steps: N_("the steps"), track: N_("the track"),
+  service: N_("the service road"), pedestrian: N_("the pedestrian way"), cycleway: N_("the cycle path"),
+  residential: N_("the street"), unclassified: N_("the road"), living_street: N_("the street"),
 };
-const describeRoad = (graph, e) => graph.names[graph.edgeName[e]] || PLAIN_NAME[graph.classes[graph.cls[e]]] || "the road";
+const describeRoad = (graph, e) => graph.names[graph.edgeName[e]] || t(PLAIN_NAME[graph.classes[graph.cls[e]]] || "the road");
 
 /** Nearest usable road point to (lat, lon) for a mode, preferring the main network. */
 function snap(graph, mode, lat, lon) {
@@ -339,18 +340,19 @@ function buildSteps(graph, nodes, edges, mode) {
 
   const steps = merged.map((leg, idx) => {
     const [lat, lon] = pt(leg.startIdx);
-    const t = leg.turn;
-    const abs = Math.abs(t);
-    const side = t < 0 ? "left" : "right";
+    const turn = leg.turn;
+    const abs = Math.abs(turn);
+    const left = turn < 0;
     // turning but staying on the same named road: no "onto"
-    const onto = idx > 0 && merged[idx - 1].label === leg.label ? "" : ` onto ${leg.label}`;
+    const sameRoad = idx > 0 && merged[idx - 1].label === leg.label;
+    const road = { road: leg.label };
     let text;
-    if (idx === 0) text = `Head ${compassName(bearingAround(0, true))} on ${leg.label}`;
-    else if (abs >= 170) text = `Make a U-turn${onto}`;
-    else if (abs >= 120) text = `Turn sharp ${side}${onto}`;
-    else if (abs >= 60) text = `Turn ${side}${onto}`;
-    else if (abs >= 20) text = `Bear ${side}${onto}`;
-    else text = `Continue onto ${leg.label}`;
+    if (idx === 0) text = t("Head {direction} on {road}", { direction: t(compassName(bearingAround(0, true))), ...road });
+    else if (abs >= 170) text = sameRoad ? t("Make a U-turn") : t("Make a U-turn onto {road}", road);
+    else if (abs >= 120) text = left ? (sameRoad ? t("Turn sharp left") : t("Turn sharp left onto {road}", road)) : sameRoad ? t("Turn sharp right") : t("Turn sharp right onto {road}", road);
+    else if (abs >= 60) text = left ? (sameRoad ? t("Turn left") : t("Turn left onto {road}", road)) : sameRoad ? t("Turn right") : t("Turn right onto {road}", road);
+    else if (abs >= 20) text = left ? (sameRoad ? t("Bear left") : t("Bear left onto {road}", road)) : sameRoad ? t("Bear right") : t("Bear right onto {road}", road);
+    else text = t("Continue onto {road}", road);
     return { text, distanceM: Math.round(leg.distanceM), lat, lon, alongM: Math.round(cum[leg.startIdx]) };
   });
   // Never read the same instruction twice in a row: two gentle bends in a row are one bend.
@@ -361,7 +363,7 @@ function buildSteps(graph, nodes, edges, mode) {
     else deduped.push(step);
   }
   const [endLat, endLon] = pt(nodes.length - 1);
-  deduped.push({ text: "You have arrived", distanceM: 0, lat: endLat, lon: endLon, alongM: Math.round(cum[cum.length - 1]) });
+  deduped.push({ text: t("You have arrived"), distanceM: 0, lat: endLat, lon: endLon, alongM: Math.round(cum[cum.length - 1]) });
   return deduped;
 }
 
@@ -383,25 +385,25 @@ const validPoint = (p) =>
  * @returns {{ok:true, mode, distanceM, durationS, geometry:number[][], steps, start, end, warnings:string[]}
  *         | {ok:false, reason:string, message:string}}
  */
-export function route(graph, from, to, { mode = WALK, avoid = [] } = {}) {
+export function route(graph, from, to, { mode = WALK, avoid = [], formatDistance = (m) => `${Math.round(m)} m` } = {}) {
   if (!validPoint(from) || !validPoint(to)) {
-    return { ok: false, reason: "bad_input", message: "A position was missing or invalid." };
+    return { ok: false, reason: "bad_input", message: t("A position was missing or invalid.") };
   }
   if (!inCoverage(graph, from.latitude, from.longitude)) {
-    return { ok: false, reason: "outside_pack", message: `Your position is outside the "${graph.name}" map.` };
+    return { ok: false, reason: "outside_pack", message: t("Your position is outside the \"{name}\" map.", { name: graph.name }) };
   }
   if (!inCoverage(graph, to.latitude, to.longitude)) {
-    return { ok: false, reason: "outside_pack", message: `Their position is outside the "${graph.name}" map.` };
+    return { ok: false, reason: "outside_pack", message: t("Their position is outside the \"{name}\" map.", { name: graph.name }) };
   }
 
   const a = snap(graph, mode, from.latitude, from.longitude);
   const b = snap(graph, mode, to.latitude, to.longitude);
-  if (!a || !b) return { ok: false, reason: "no_road_near", message: "No road in the map is near one of the positions." };
+  if (!a || !b) return { ok: false, reason: "no_road_near", message: t("No road in the map is near one of the positions.") };
 
   const warnings = [];
   const OFF_ROAD_WARN_M = 150;
-  if (a.offM > OFF_ROAD_WARN_M) warnings.push(`The nearest known road to you is ${Math.round(a.offM)} m away.`);
-  if (b.offM > OFF_ROAD_WARN_M) warnings.push(`The nearest known road to them is ${Math.round(b.offM)} m away.`);
+  if (a.offM > OFF_ROAD_WARN_M) warnings.push(t("The nearest known road to you is {distance} away.", { distance: formatDistance(a.offM) }));
+  if (b.offM > OFF_ROAD_WARN_M) warnings.push(t("The nearest known road to them is {distance} away.", { distance: formatDistance(b.offM) }));
 
   const snappedStart = { latitude: graph.lat[a.node], longitude: graph.lon[a.node], offM: Math.round(a.offM) };
   const snappedEnd = { latitude: graph.lat[b.node], longitude: graph.lon[b.node], offM: Math.round(b.offM) };
@@ -410,14 +412,14 @@ export function route(graph, from, to, { mode = WALK, avoid = [] } = {}) {
     return {
       ok: true, mode, distanceM: Math.round(distanceM(from.latitude, from.longitude, to.latitude, to.longitude)),
       durationS: 0, geometry: [[snappedStart.latitude, snappedStart.longitude]],
-      steps: [{ text: "You are at the nearest road point to them", distanceM: 0, lat: snappedStart.latitude, lon: snappedStart.longitude }],
+      steps: [{ text: t("You are at the nearest road point to them"), distanceM: 0, lat: snappedStart.latitude, lon: snappedStart.longitude }],
       start: snappedStart, end: snappedEnd, warnings,
     };
   }
 
   const index = modeIndex(graph, mode);
   if (index.component[a.node] !== index.component[b.node]) {
-    return { ok: false, reason: "no_route", message: "The map has no connected route between these two places." };
+    return { ok: false, reason: "no_route", message: t("The map has no connected route between these two places.") };
   }
   // Closures near either end are not allowed to make the trip impossible: if you are standing
   // at a reported blockage you still need to get away from it, and if they are beside one you
@@ -427,7 +429,7 @@ export function route(graph, from, to, { mode = WALK, avoid = [] } = {}) {
   for (const c of avoid) {
     if (!c || c.kind !== "blocked" || !validPoint(c) || !(c.radiusM > 0)) continue;
     const nearEnd = [snappedStart, snappedEnd].some((p) => distanceM(c.latitude, c.longitude, p.latitude, p.longitude) <= c.radiusM + NEAR_END_M);
-    if (nearEnd) warnings.push("A road closure is reported right at your start or at their position; the route may pass through it.");
+    if (nearEnd) warnings.push(t("A road closure is reported right at your start or at their position; the route may pass through it."));
     else closures.push(c);
   }
   const closureEdges = closures.length ? blockedEdges(graph, closures) : null;
@@ -439,13 +441,13 @@ export function route(graph, from, to, { mode = WALK, avoid = [] } = {}) {
       return {
         ok: false,
         reason: "blocked_by_reports",
-        message: "Reported road closures block every route this map knows. Reports can be wrong; you can show the route anyway.",
+        message: t("Reported road closures block every route this map knows. Reports can be wrong; you can show the route anyway."),
         closures: closures.length,
       };
     }
     return {
       ok: false, reason: "no_route",
-      message: mode === DRIVE ? "No route by road (one-way streets may block it). Try walking." : "No route found.",
+      message: mode === DRIVE ? t("No route by road (one-way streets may block it). Try walking.") : t("No route found."),
     };
   }
 

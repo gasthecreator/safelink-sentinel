@@ -24,6 +24,15 @@ import {
 import RescueLogger from "../services/storage/RescueLogger.js";
 import AlertManager from "../services/mesh/AlertManager.js";
 import { describePosition, mapsUrl } from "../services/location/position.js";
+import { formatDistance } from "../services/units/units";
+import { useUnits } from "../services/units/UnitStore";
+import { t, N_ } from "../services/i18n/i18n";
+import { useLanguage } from "../services/i18n/LanguageStore";
+
+const PRIORITY_WORDS = { critical: N_("critical"), high: N_("high"), normal: N_("normal"), low: N_("low") };
+
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 const HELPER_ID = "device-volunteer"; // later: replace with real identity
 
@@ -34,6 +43,8 @@ const HELPER_ID = "device-volunteer"; // later: replace with real identity
 const SHOW_MAP_VIEW = false;
 
 export default function AlertDetailScreen() {
+  useLanguage(); // re-render in the new language when it is changed
+  useUnits(); // re-render if the units setting changes
   const route = useRoute();
   const navigation = useNavigation();
   const { alert } = route.params;
@@ -61,9 +72,8 @@ export default function AlertDetailScreen() {
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
         );
         if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert(
-            "Location Permission",
-            "Location permission is required for navigation. You can still view the destination."
+          Alert.alert(t("Location Permission"),
+            t("Location permission is required for navigation. You can still view the destination.")
           );
           setLoading(false);
           if (alert.location) {
@@ -95,9 +105,8 @@ export default function AlertDetailScreen() {
         },
         (error) => {
           console.error("Location error:", error);
-          Alert.alert(
-            "Location Permission",
-            "Location permission is required for navigation. You can still view the destination."
+          Alert.alert(t("Location Permission"),
+            t("Location permission is required for navigation. You can still view the destination.")
           );
           setLoading(false);
           // Show destination only if location denied
@@ -142,13 +151,13 @@ export default function AlertDetailScreen() {
       })
       .catch((err) => {
         console.error("Error opening maps:", err);
-        Alert.alert("Error", "Unable to open maps application.");
+        Alert.alert(t("Error"), t("Unable to open maps application."));
       });
   };
 
   const handleAcceptRescue = async () => {
     if (!distance) {
-      Alert.alert("Error", "Distance information not available.");
+      Alert.alert(t("Error"), t("Distance information not available."));
       return;
     }
 
@@ -172,11 +181,11 @@ export default function AlertDetailScreen() {
         }
       }
 
-      Alert.alert("Rescue Accepted", "You have accepted this rescue mission. Safe travels!");
+      Alert.alert(t("Rescue Accepted"), t("You have accepted this rescue mission. Safe travels!"));
     } catch (err) {
       console.error("Error accepting rescue:", err);
       setAccepted(false);
-      Alert.alert("Error", "Failed to accept rescue. Please try again.");
+      Alert.alert(t("Error"), t("Failed to accept rescue. Please try again."));
     }
   };
 
@@ -198,11 +207,11 @@ export default function AlertDetailScreen() {
         }
       }
 
-      Alert.alert("Arrival Logged", "Thank you for your service! Your arrival has been logged.");
+      Alert.alert(t("Arrival Logged"), t("Thank you for your service! Your arrival has been logged."));
     } catch (err) {
       console.error("Error logging arrival:", err);
       setArrived(false);
-      Alert.alert("Error", "Failed to log arrival. Please try again.");
+      Alert.alert(t("Error"), t("Failed to log arrival. Please try again."));
     }
   };
 
@@ -215,63 +224,63 @@ export default function AlertDetailScreen() {
         if (!url) throw new Error("no position");
         await Linking.openURL(url);
       } catch {
-        Alert.alert("Could not open Maps", "No maps app could open this position.");
+        Alert.alert(t("Could not open Maps"), t("No maps app could open this position."));
       }
     };
     return (
       <View style={styles.textOnlyContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.textOnlyBack}>← Back</Text>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
+          <Text style={styles.textOnlyBack}>{t("← Back")}</Text>
         </TouchableOpacity>
-        <Text style={styles.textOnlyTitle}>{alert.title || "Alert"}</Text>
+        <Text accessibilityRole="header" style={styles.textOnlyTitle}>{alert.title || t("Alert")}</Text>
         {alert.priority ? (
-          <Text style={styles.textOnlyMeta}>Priority: {String(alert.priority).toUpperCase()}</Text>
+          <Text style={styles.textOnlyMeta}>{t("Priority: {priority}", { priority: t(PRIORITY_WORDS[alert.priority] || PRIORITY_WORDS.normal).toUpperCase() })}</Text>
         ) : null}
         {alert.time ? <Text style={styles.textOnlyMeta}>{alert.time}</Text> : null}
-        <Text style={styles.textOnlyBody}>{alert.description || "No description available"}</Text>
+        <Text style={styles.textOnlyBody}>{alert.description || t("No description available")}</Text>
 
         {alert.location ? (
-          <TouchableOpacity style={styles.directionsButton} onPress={() => navigation.navigate("Navigation", { alert })}>
-            <Text style={styles.finderButtonText}>Get directions</Text>
-            <Text style={styles.finderButtonHint}>Offline: worked out on this phone, no internet needed</Text>
+          <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={styles.directionsButton} onPress={() => navigation.navigate("Navigation", { alert })}>
+            <Text style={styles.finderButtonText}>{t("Get directions")}</Text>
+            <Text style={styles.finderButtonHint}>{t("Offline: worked out on this phone, no internet needed")}</Text>
           </TouchableOpacity>
         ) : null}
 
         {alert.senderId ? (
-          <TouchableOpacity style={styles.finderButton} onPress={() => navigation.navigate("Finder", { alert })}>
-            <Text style={styles.finderButtonText}>Find them by Bluetooth</Text>
-            <Text style={styles.finderButtonHint}>Works once you are within a few tens of metres</Text>
+          <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={styles.finderButton} onPress={() => navigation.navigate("Finder", { alert })}>
+            <Text style={styles.finderButtonText}>{t("Find them by Bluetooth")}</Text>
+            <Text style={styles.finderButtonHint}>{t("Works once you are within a few tens of metres")}</Text>
           </TouchableOpacity>
         ) : null}
 
         {alert.where ? (
           <View style={styles.positionBox}>
-            <Text style={styles.positionLabel}>Sender says they are</Text>
+            <Text style={styles.positionLabel}>{t("Sender says they are")}</Text>
             <Text style={styles.positionCoords}>{alert.where}</Text>
           </View>
         ) : null}
 
         {position ? (
           <View style={styles.positionBox}>
-            <Text style={styles.positionLabel}>Sender's position</Text>
+            <Text style={styles.positionLabel}>{t("Sender's position")}</Text>
             <Text style={styles.positionCoords}>{position.coords}</Text>
             {position.provenance ? <Text style={styles.textOnlyMeta}>{position.provenance}</Text> : null}
             <Text style={styles.textOnlyMeta}>
-              {[position.accuracy, position.age ? `fix taken ${position.age}` : null]
+              {[position.accuracy, position.age ? t("fix taken {age}", { age: position.age }) : null]
                 .filter(Boolean)
-                .join("  ·  ") || "Accuracy unknown"}
+                .join("  ·  ") || t("Accuracy unknown")}
             </Text>
             {position.approximate ? (
               <Text style={styles.positionWarn}>
-                Only an approximate area: the sender may be much closer or further than this.
+                {t("Only an approximate area: the sender may be much closer or further than this.")}
               </Text>
             ) : null}
-            <TouchableOpacity style={styles.positionButton} onPress={openInMaps}>
-              <Text style={styles.positionButtonText}>Open in Maps app</Text>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={styles.positionButton} onPress={openInMaps}>
+              <Text style={styles.positionButtonText}>{t("Open in Maps app")}</Text>
             </TouchableOpacity>
           </View>
         ) : alert.where ? null : (
-          <Text style={styles.textOnlyMeta}>No location was shared with this alert.</Text>
+          <Text style={styles.textOnlyMeta}>{t("No location was shared with this alert.")}</Text>
         )}
       </View>
     );
@@ -281,14 +290,14 @@ export default function AlertDetailScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#38BDF8" />
-        <Text style={styles.loadingText}>Preparing rescue route...</Text>
+        <Text style={styles.loadingText}>{t("Preparing rescue route...")}</Text>
       </View>
     );
   }
 
   const etaLabel = etaMinutes != null ? formatETAMinutes(etaMinutes) : "N/A";
   const distanceLabel =
-    distance != null ? `${distance.toFixed(1)} km away` : "Distance unknown";
+    distance != null ? t("{distance} away", { distance: formatDistance(distance * 1000) }) : t("Distance unknown");
 
   // Determine map region to fit both locations
   const mapRegion = (() => {
@@ -327,12 +336,12 @@ export default function AlertDetailScreen() {
   if (!mapRegion) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>No location data available for this alert.</Text>
-        <TouchableOpacity
+        <Text style={styles.errorText}>{t("No location data available for this alert.")}</Text>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>Go Back</Text>
+          <Text style={styles.backButtonText}>{t("Go Back")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -353,15 +362,15 @@ export default function AlertDetailScreen() {
               latitude: currentLocation.latitude,
               longitude: currentLocation.longitude,
             }}
-            title="You"
-            description="Current position"
+            title={t("You")}
+            description={t("Current position")}
             pinColor="#22C55E"
           />
         )}
 
         <Marker
           coordinate={alert.location}
-          title="Rescue location"
+          title={t("Rescue location")}
           description={alert.address}
           pinColor="#EF4444"
         />
@@ -378,17 +387,17 @@ export default function AlertDetailScreen() {
 
       <View style={styles.infoCard}>
         <View style={styles.header}>
-          <Text style={styles.title}>{alert.title || "Rescue Alert"}</Text>
+          <Text accessibilityRole="header" style={styles.title}>{alert.title || t("Rescue Alert")}</Text>
           {alert.priority && (
             <View style={[styles.priorityBadge, styles[`priorityBadge--${alert.priority}`]]}>
-              <Text style={styles.priorityText}>{alert.priority.toUpperCase()}</Text>
+              <Text style={styles.priorityText}>{t(PRIORITY_WORDS[alert.priority] || PRIORITY_WORDS.normal).toUpperCase()}</Text>
             </View>
           )}
         </View>
-        <Text style={styles.description}>{alert.description || "No description available"}</Text>
+        <Text style={styles.description}>{alert.description || t("No description available")}</Text>
         <View style={styles.addressContainer}>
-          <Text style={styles.addressLabel}>📍 Location</Text>
-          <Text style={styles.address}>{alert.address || "Address not available"}</Text>
+          <Text style={styles.addressLabel}>{t("📍 Location")}</Text>
+          <Text style={styles.address}>{alert.address || t("Address not available")}</Text>
           {alert.location && (
             <Text style={styles.coordinates}>
               {alert.location.latitude.toFixed(6)}, {alert.location.longitude.toFixed(6)}
@@ -398,38 +407,38 @@ export default function AlertDetailScreen() {
 
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Distance</Text>
+            <Text style={styles.statLabel}>{t("Distance")}</Text>
             <Text style={styles.statValue}>{distanceLabel}</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>ETA (walk)</Text>
+            <Text style={styles.statLabel}>{t("ETA (walk)")}</Text>
             <Text style={styles.statValue}>{etaLabel}</Text>
           </View>
         </View>
 
         <View style={styles.actionsRow}>
           {!accepted ? (
-            <TouchableOpacity
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
               style={[styles.button, styles.acceptButton]}
               onPress={handleAcceptRescue}
             >
-              <Text style={styles.buttonText}>Accept rescue</Text>
+              <Text style={styles.buttonText}>{t("Accept rescue")}</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.statusPill}>
-              <Text style={styles.statusText}>Rescue accepted</Text>
+              <Text style={styles.statusText}>{t("Rescue accepted")}</Text>
             </View>
           )}
 
-          <TouchableOpacity
+          <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
             style={[styles.button, styles.mapsButton]}
             onPress={openExternalMap}
           >
-            <Text style={styles.buttonText}>Open in Google Maps</Text>
+            <Text style={styles.buttonText}>{t("Open in Google Maps")}</Text>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
           style={[
             styles.arrivedButton,
             arrived && { backgroundColor: "#16A34A" },
@@ -438,15 +447,15 @@ export default function AlertDetailScreen() {
           disabled={arrived === true}
         >
           <Text style={styles.arrivedText}>
-            {arrived ? "Arrival logged ✅" : "Mark as arrived"}
+            {arrived ? t("Arrival logged ✅") : t("Mark as arrived")}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
           style={styles.backLink}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backText}>← Back to alerts</Text>
+          <Text style={styles.backText}>{t("← Back to alerts")}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -460,7 +469,7 @@ const styles = StyleSheet.create({
   textOnlyBody: { color: "#E2E8F0", fontSize: 17, lineHeight: 24, marginVertical: 16 },
   textOnlyMeta: { color: "#94A3B8", fontSize: 14, marginBottom: 4 },
   directionsButton: { backgroundColor: "#2563EB", borderRadius: 12, padding: 14, marginBottom: 12 },
-  finderButton: { backgroundColor: "#16A34A", borderRadius: 12, padding: 14, marginBottom: 12 },
+  finderButton: { backgroundColor: "#15803D", borderRadius: 12, padding: 14, marginBottom: 12 },
   finderButtonText: { color: "#fff", fontSize: 18, fontWeight: "800" },
   finderButtonHint: { color: "#DCFCE7", fontSize: 13, marginTop: 2 },
   positionBox: { backgroundColor: "#111C30", borderRadius: 12, padding: 14, marginTop: 8 },
@@ -598,7 +607,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F97316",
   },
   mapsButton: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#2563EB",
   },
   buttonText: {
     color: "#FFFFFF",
@@ -608,7 +617,7 @@ const styles = StyleSheet.create({
   },
   arrivedButton: {
     marginTop: 0,
-    backgroundColor: "#10B981",
+    backgroundColor: "#047857",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
@@ -670,7 +679,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   backButton: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#2563EB",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,

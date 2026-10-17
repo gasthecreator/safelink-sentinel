@@ -10,25 +10,31 @@ import { resolveAlertLocation } from "../services/location/resolveLocation";
 import { listPlaces } from "../services/location/PlaceStore";
 import { describeLocationOutcome, describePosition } from "../services/location/position";
 import { MAX_NOTE } from "../services/roads/reports";
+import { t, tp, N_ } from "../services/i18n/i18n";
+import { useLanguage } from "../services/i18n/LanguageStore";
+
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 const KINDS = [
-  { id: "blocked", label: "Blocked", hint: "Cars or people cannot get through here", color: "#DC2626" },
-  { id: "passable", label: "Got through", hint: "I just came along here and it is open", color: "#16A34A" },
-  { id: "hazard", label: "Hazard", hint: "Flooding, wires down, damage: take care", color: "#D97706" },
+  { id: "blocked", label: N_("Blocked"), hint: N_("Cars or people cannot get through here"), color: "#DC2626" },
+  { id: "passable", label: N_("Got through"), hint: N_("I just came along here and it is open"), color: "#16A34A" },
+  { id: "hazard", label: N_("Hazard"), hint: N_("Flooding, wires down, damage: take care"), color: "#D97706" },
 ];
 
 // GPS has no position: let the person choose rather than guessing for them.
 function askNoFix(fix) {
-  const why = fix.reason === "denied" ? "Location permission was declined." : "The phone could not get a GPS fix. Try near a window or outdoors.";
+  const why = fix.reason === "denied" ? t("Location permission was declined.") : t("The phone could not get a GPS fix. Try near a window or outdoors.");
   return new Promise((resolve) => {
-    Alert.alert("No GPS position", `${why}\n\nA report needs to say where it is. Use a place you saved earlier, or cancel.`, [
-      { text: "Use a saved place", onPress: () => resolve("places") },
-      { text: "Cancel", style: "cancel", onPress: () => resolve("cancel") },
+    Alert.alert(t("No GPS position"), `${why}\n\n${t("A report needs to say where it is. Use a place you saved earlier, or cancel.")}`, [
+      { text: t("Use a saved place"), onPress: () => resolve("places") },
+      { text: t("Cancel"), style: "cancel", onPress: () => resolve("cancel") },
     ], { cancelable: true, onDismiss: () => resolve("cancel") });
   });
 }
 
 export default function ReportRoadScreen() {
+  useLanguage(); // re-render in the new language when it is changed
   const navigation = useNavigation();
   const [kind, setKind] = useState(null);
   const [note, setNote] = useState("");
@@ -46,7 +52,7 @@ export default function ReportRoadScreen() {
     if (!kind) return;
     const place = places.find((p) => p.id === placeId);
     if (source === "place" && !place) {
-      Alert.alert("Choose a place", "Pick one of your saved places, or switch back to GPS.");
+      Alert.alert(t("Choose a place"), t("Pick one of your saved places, or switch back to GPS."));
       return;
     }
     setBusy(true);
@@ -60,7 +66,13 @@ export default function ReportRoadScreen() {
       }
       const position = resolved.fix?.position;
       if (!position) {
-        setResult({ ok: false, text: describeLocationOutcome(resolved.fix).replace("Sent without", "Not sent: no position.") });
+        const why = {
+          denied: t("Not sent: location permission was declined."),
+          unavailable: t("Not sent: no GPS fix. Try near a window or outdoors."),
+          timeout: t("Not sent: no GPS fix in time."),
+          no_place: t("Not sent: no saved place was chosen."),
+        };
+        setResult({ ok: false, text: why[resolved.fix && resolved.fix.reason] || t("Not sent: no position.") });
         return;
       }
       const summary = await RoadReportStore.publish({ kind, position, note });
@@ -69,9 +81,13 @@ export default function ReportRoadScreen() {
         ok: true,
         text:
           (reached > 0
-            ? `Shared with ${reached} nearby device${reached === 1 ? "" : "s"}. It will also go to devices that come into range later.`
-            : "Saved. No one is in range yet; it will be sent when a device comes into range.") +
-          ` ${describeLocationOutcome(resolved.fix)} Your own directions already avoid it.`,
+            ? tp(
+                "Shared with {count} nearby device. It will also go to devices that come into range later.",
+                "Shared with {count} nearby devices. It will also go to devices that come into range later.",
+                reached
+              )
+            : t("Saved. No one is in range yet; it will be sent when a device comes into range.")) +
+          ` ${describeLocationOutcome(resolved.fix)} ${t("Your own directions already avoid it.")}`,
       });
       setNote("");
     } catch (err) {
@@ -83,50 +99,49 @@ export default function ReportRoadScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
-      <TouchableOpacity onPress={() => navigation.goBack()}>
-        <Text style={styles.back}>← Back</Text>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
+        <Text style={styles.back}>{t("← Back")}</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>Report a road</Text>
+      <Text accessibilityRole="header" style={styles.title}>{t("Report a road")}</Text>
       <Text style={styles.intro}>
-        Tell people nearby what you can see where you are. Phones that hear it will route around a
-        blocked road. Only report what you have seen yourself: other people may rely on it.
+        {t("Tell people nearby what you can see where you are. Phones that hear it will route around a blocked road. Only report what you have seen yourself: other people may rely on it.")}
       </Text>
 
-      <Text style={styles.label}>What is it like here?</Text>
+      <Text style={styles.label}>{t("What is it like here?")}</Text>
       {KINDS.map((k) => (
-        <TouchableOpacity key={k.id} style={[styles.kind, kind === k.id && { borderColor: k.color, backgroundColor: "#111C30" }]} onPress={() => setKind(k.id)}>
-          <Text style={[styles.kindLabel, { color: k.color }]}>{kind === k.id ? "● " : "○ "}{k.label}</Text>
-          <Text style={styles.kindHint}>{k.hint}</Text>
+        <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ selected: kind === k.id }} accessibilityLabel={`${t(k.label)}. ${t(k.hint)}`} key={k.id} style={[styles.kind, kind === k.id && { borderColor: k.color, backgroundColor: "#111C30" }]} onPress={() => setKind(k.id)}>
+          <Text style={[styles.kindLabel, { color: k.color }]}>{kind === k.id ? "● " : "○ "}{t(k.label)}</Text>
+          <Text style={styles.kindHint}>{t(k.hint)}</Text>
         </TouchableOpacity>
       ))}
 
       <Text style={styles.label}>Note (optional)</Text>
-      <TextInput style={styles.input} value={note} onChangeText={setNote} maxLength={MAX_NOTE} placeholder="e.g. Tree across both lanes" placeholderTextColor="#64748B" />
+      <TextInput accessibilityLabel={t("Note about the road, optional")} style={styles.input} value={note} onChangeText={setNote} maxLength={MAX_NOTE} placeholder={t("e.g. Tree across both lanes")} placeholderTextColor="#94A3B8" />
 
-      <Text style={styles.label}>Where</Text>
+      <Text style={styles.label}>{t("Where")}</Text>
       <View style={styles.row}>
-        {[["gps", "Here (GPS)"], ["place", "A saved place"]].map(([v, l]) => (
-          <TouchableOpacity key={v} style={[styles.chip, source === v && styles.chipActive]} onPress={() => setSource(v)}>
+        {[["gps", t("Here (GPS)")], ["place", t("A saved place")]].map(([v, l]) => (
+          <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ selected: source === v }} key={v} style={[styles.chip, source === v && styles.chipActive]} onPress={() => setSource(v)}>
             <Text style={[styles.chipText, source === v && styles.chipTextActive]}>{l}</Text>
           </TouchableOpacity>
         ))}
       </View>
       {source === "place" ? (
         places.length === 0 ? (
-          <Text style={styles.hint}>No saved places yet. Save one from Saved places on the home screen.</Text>
+          <Text style={styles.hint}>{t("No saved places yet. Save one from Saved places on the home screen.")}</Text>
         ) : (
           places.map((p) => (
-            <TouchableOpacity key={p.id} style={[styles.place, p.id === placeId && styles.placeActive]} onPress={() => setPlaceId(p.id)}>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ selected: p.id === placeId }} key={p.id} style={[styles.place, p.id === placeId && styles.placeActive]} onPress={() => setPlaceId(p.id)}>
               <Text style={styles.placeName}>{p.id === placeId ? "● " : "○ "}{p.name}</Text>
               <Text style={styles.hint}>{describePosition(p)?.coords}</Text>
             </TouchableOpacity>
           ))
         )
       ) : null}
-      <Text style={styles.hint}>Every nearby phone that hears this can see where you are.</Text>
+      <Text style={styles.hint}>{t("Every nearby phone that hears this can see where you are.")}</Text>
 
-      <TouchableOpacity style={[styles.button, (!kind || busy) && styles.disabled]} disabled={!kind || busy} onPress={send}>
-        <Text style={styles.buttonText}>{busy ? "Working..." : "Send report"}</Text>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, (!kind || busy) && styles.disabled]} disabled={!kind || busy} onPress={send}>
+        <Text style={styles.buttonText}>{busy ? t("Working...") : t("Send report")}</Text>
       </TouchableOpacity>
       {result ? <Text style={[styles.result, !result.ok && { color: "#F87171" }]}>{result.text}</Text> : null}
     </ScrollView>
@@ -151,8 +166,8 @@ const styles = StyleSheet.create({
   place: { backgroundColor: "#111C30", borderRadius: 10, padding: 12, marginTop: 8, borderWidth: 1, borderColor: "#1E293B" },
   placeActive: { borderColor: "#2563EB" },
   placeName: { color: "#F8FAFC", fontSize: 15, fontWeight: "600" },
-  hint: { color: "#64748B", fontSize: 12.5, marginTop: 6 },
-  button: { backgroundColor: "#16A34A", borderRadius: 12, padding: 16, alignItems: "center", marginTop: 20 },
+  hint: { color: "#94A3B8", fontSize: 12.5, marginTop: 6 },
+  button: { backgroundColor: "#15803D", borderRadius: 12, padding: 16, alignItems: "center", marginTop: 20 },
   disabled: { opacity: 0.4 },
   buttonText: { color: "#fff", fontSize: 17, fontWeight: "800" },
   result: { color: "#86EFAC", fontSize: 14, lineHeight: 20, marginTop: 14 },

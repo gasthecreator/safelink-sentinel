@@ -1,6 +1,9 @@
 // app/services/navigation/mapView.js
 // Pure helpers for drawing the offline map: fitting a view to some points, projecting
 // coordinates to pixels, choosing which roads to draw, and a scale bar.
+import { formatDistance as fmt, scaleSteps } from "../units/units.js";
+import { t } from "../i18n/i18n.js";
+
 
 const M_PER_DEG_LAT = 111320;
 
@@ -65,21 +68,21 @@ export function pickRoads(graph, bounds, limit = 1800) {
 }
 
 /** A round-number scale bar no wider than ~110 px: { pixels, label }. */
-export function scaleBar(metersPerPixel, maxPixels = 110) {
-  const steps = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+export function scaleBar(metersPerPixel, maxPixels = 110, units) {
+  const steps = scaleSteps(units);
   let best = steps[0];
-  for (const m of steps) if (m / metersPerPixel <= maxPixels) best = m;
-  return { pixels: Math.max(8, Math.round(best / metersPerPixel)), label: best >= 1000 ? `${best / 1000} km` : `${best} m` };
+  for (const step of steps) if (step.m / metersPerPixel <= maxPixels) best = step;
+  return { pixels: Math.max(8, Math.round(best.m / metersPerPixel)), label: best.label };
 }
 
-export function formatDistance(m) {
-  if (m < 1000) return `${Math.round(m / 10) * 10 || Math.round(m)} m`;
-  return `${(m / 1000).toFixed(m < 10000 ? 1 : 0)} km`;
+/** Metres shown as m/km or ft/mi, per the person's units (or the given ones). */
+export function formatDistance(m, units) {
+  return fmt(m, units);
 }
 
 export function formatDuration(s) {
   const minutes = Math.round(s / 60);
-  if (minutes < 1) return "under a minute";
+  if (minutes < 1) return t("under a minute");
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
   const rest = minutes % 60;

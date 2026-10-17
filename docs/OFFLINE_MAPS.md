@@ -72,7 +72,7 @@ small request is fetched in tiles (about 400 km2 each, with a pause between them
 one pack, and retried if a server is busy. Finished tiles are kept next to the output (`--cache DIR`
 to choose where), so a run that fails part-way carries on where it stopped. One pack can cover up to
 1 square degree (about 10,000 km2, an estimated 20-25 MB from the measurement below, not yet tried on
-a phone); for more, make several packs.
+a phone); for more, make several packs that touch each other (see "Several maps" below).
 Roads that cross the edge of the area you asked for are included whole.
 
 Measured with a real pack: a 1,300 km2 area (the whole of Lincoln Parish, Louisiana) is 2.8 MB, loads
@@ -166,6 +166,39 @@ Phones that never reconnect to the internet keep trusting the old key until they
 Limits: if the **backup** key leaks too, there is no way to retire it from afar; ship a new app with new keys.
 A phone only learns of a retirement when it next checks for maps.
 
+## Places: hospitals, shelters, water
+
+Maps built from now on also carry the places that matter in an emergency, taken from the same OpenStreetMap
+data: hospitals, clinics, pharmacies, fire stations, police, shelters, assembly points and drinking water.
+**Find help nearby** (home screen) lists the nearest of each kind from the map on the phone, with distance and
+direction, and opens directions to the one you tap. It needs no internet.
+
+Be clear about its limits:
+
+- It is only as good as OpenStreetMap. Volunteers keep it up to date, so a place may be missing or have closed.
+  The screen says so. Shelters in particular are rarely mapped: the Grambling and Ruston area has hospitals,
+  clinics, pharmacies, police, fire stations and drinking water, but no mapped shelters.
+- Distances are in a straight line; the route that follows is worked out over the roads.
+- Maps made **before** this feature have no places (the screen says so and offers to download an updated map).
+  The map published as `map-packs` is such a map until you rebuild and publish it again (a new version number
+  is picked automatically when the file changes).
+- A map near the size limit is a little bigger with places (the Grambling and Ruston map grew from 1,228 KB to 1,230 KB).
+
+## Several maps
+
+When a trip is not inside any one map but the maps on the phone, together, cover both ends, the phone joins the
+neighbouring ones into one road network for that trip (up to 4 maps and about 1.5 million road segments) and routes
+across the join. This is what lets a whole state be a set of county-sized maps.
+
+How to make maps that join: build each with `--bbox` so the areas **touch or overlap** (the builder keeps every road
+crossing the edge of its area, whole, so neighbouring maps share the points of those roads and connect there).
+A gap between two maps means no route across it.
+
+Checked against real data: Grambling and Ruston built as two adjacent maps and joined on the phone gave exactly the
+same network as the same area built as one map (29,150 points, 31,611 roads, 31 places), and all 364 sampled walking
+and driving routes were identical, 192 of them crossing the join. Joining took about 35 ms on a laptop and the joined
+map is kept for the next trip. Not yet tried: four large maps on a phone's memory.
+
 ## Things worth knowing
 
 - **Coverage:** a pack fully covers the box you asked for. Roads crossing the edge are included
@@ -176,7 +209,9 @@ A phone only learns of a retirement when it next checks for maps.
 - **Places off the roads:** if a position is far from any road in the pack the route starts at
   the nearest road and the screen says how far away that is; the dashed line on the map is that gap.
 - **Directions:** a turn is announced only at a junction, and gentle bends on the same street are not.
-  Names are whatever OpenStreetMap has, so the same road can be spelled two ways.
+  Names are whatever OpenStreetMap has, but common variants are brought to one spelling when a map is loaded
+  ("Jr" and "Junior", "Ave" and "Avenue", "PIne" typos, "N Main St"), so the same road is not announced as two.
+  Names it does not recognise are left exactly as they are.
 - **Live directions:** with a GPS start, **Start live directions** follows the phone along the route:
   distance to the next turn, distance and time left, a buzz when a turn is near. Leaving the route
   (two fixes more than about 40-120 m away, a few seconds apart; poor-accuracy fixes are ignored)
@@ -188,7 +223,7 @@ A phone only learns of a retirement when it next checks for maps.
   onto Main Street" when it is close, with earlier warnings when driving. Live directions carry on with the phone locked or
   another app in front: on Android a notification ("SafeLink directions") is shown while they run, which is what
   lets Android keep using GPS; on iOS the blue location indicator appears. Both stop when you press Stop or
-  leave the screen. Nothing tracks you outside live directions. Distances are spoken in meters and kilometres. Without live mode the route is worked
+  leave the screen. Nothing tracks you outside live directions. Distances (shown and spoken) use miles and feet or kilometres and metres: Settings, Distances, "Automatic" follows the phone's region (miles in the US, Liberia, Myanmar and the UK). Without live mode the route is worked
   out once; use **Try GPS again** to recalculate.
 
 ## Credit

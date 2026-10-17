@@ -10,6 +10,7 @@ import {
   ALLOW_INSECURE_PACK_URLS,
   MAX_CATALOG_BYTES,
 } from "../../constants/maps.js";
+import { t } from "../i18n/i18n.js";
 
 const TIMEOUT_MS = 15000;
 
@@ -25,31 +26,31 @@ export async function fetchCatalog(store, {
   allowInsecure = ALLOW_INSECURE_PACK_URLS,
   now = Date.now(),
 } = {}) {
-  if (!publicKey) throw new CatalogError("disabled", "Map downloads are not set up in this version of the app.");
-  if (!allowInsecure && !/^https:\/\//i.test(url)) throw new CatalogError("invalid", "The map list address is not secure.");
+  if (!publicKey) throw new CatalogError("disabled", t("Map downloads are not set up in this version of the app."));
+  if (!allowInsecure && !/^https:\/\//i.test(url)) throw new CatalogError("invalid", t("The map list address is not secure."));
 
   const controller = typeof AbortController === "function" ? new AbortController() : null;
   const timer = setTimeout(() => controller && controller.abort(), TIMEOUT_MS);
   let text;
   try {
     const res = await fetchImpl(url, { signal: controller ? controller.signal : undefined, headers: { Accept: "application/json" } });
-    if (!res.ok) throw new CatalogError("network", `The map list could not be fetched (${res.status}).`);
+    if (!res.ok) throw new CatalogError("network", t("The map list could not be fetched ({status}).", { status: res.status }));
     const declared = Number(res.headers && res.headers.get && res.headers.get("content-length"));
-    if (declared > MAX_CATALOG_BYTES) throw new CatalogError("too_large", "The map list is too large.");
+    if (declared > MAX_CATALOG_BYTES) throw new CatalogError("too_large", t("The map list is too large."));
     text = await res.text();
   } catch (err) {
     if (err instanceof CatalogError) throw err;
-    throw new CatalogError("network", "Could not reach the map server. Check the internet connection.");
+    throw new CatalogError("network", t("Could not reach the map server. Check the internet connection."));
   } finally {
     clearTimeout(timer);
   }
-  if (text.length > MAX_CATALOG_BYTES * 2) throw new CatalogError("too_large", "The map list is too large.");
+  if (text.length > MAX_CATALOG_BYTES * 2) throw new CatalogError("too_large", t("The map list is too large."));
 
   let wire;
   try {
     wire = JSON.parse(text);
   } catch {
-    throw new CatalogError("invalid", "The map list could not be read.");
+    throw new CatalogError("invalid", t("The map list could not be read."));
   }
   const catalog = verifyCatalog(wire, {
     publicKey,

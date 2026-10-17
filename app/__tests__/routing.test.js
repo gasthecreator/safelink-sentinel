@@ -128,7 +128,7 @@ describe("walkers and vehicles use different roads", () => {
   test("a car cannot, and goes round", () => {
     const r = make(spec()).route(pt(30, -90), pt(30, -89.998), { mode: "drive" });
     expect(r.geometry).toHaveLength(3);
-    expect(r.steps[0].text).toMatch(/Long Rd/);
+    expect(r.steps[0].text).toMatch(/Long Road/);
   });
   test("a motorway is for cars, not walkers", () => {
     const r = make({
@@ -161,7 +161,7 @@ describe("one-way streets", () => {
     const r = make(spec()).route(pt(30, -89.999), pt(30, -90), { mode: "drive" });
     expect(r.ok).toBe(true);
     expect(r.geometry).toHaveLength(3);
-    expect(r.steps.map((s) => s.text).join(" ")).not.toMatch(/One Way St/);
+    expect(r.steps.map((s) => s.text).join(" ")).not.toMatch(/One Way Street/);
   });
   test("a walker ignores one-way signs", () => {
     const r = make(spec()).route(pt(30, -89.999), pt(30, -90), { mode: "walk" });
@@ -208,7 +208,7 @@ describe("disconnected roads", () => {
   test("it starts from the main network, not a tiny fragment that happens to be nearer", () => {
     const r = make(spec()).route(pt(30.0002, -90), pt(30, -89.98));
     expect(r.ok).toBe(true);
-    expect(r.steps[0].text).toMatch(/Main St/);
+    expect(r.steps[0].text).toMatch(/Main Street/);
   });
   test("two separate networks give a clear 'no route', not a hang", () => {
     // 100 points main + a 60-point second network, both big enough to count
@@ -262,7 +262,7 @@ describe("turn-by-turn directions", () => {
 
   test("a straight run is one step plus arrival", () => {
     const out = grid().route(id(0, 0), id(0, 3));
-    expect(out.steps.map((s) => s.text)).toEqual(["Head east on East 0 Ave", "You have arrived"]);
+    expect(out.steps.map((s) => s.text)).toEqual(["Head east on East 0 Avenue", "You have arrived"]);
     expect(out.steps[0].distanceM).toBeGreaterThan(240); // 3 blocks of ~84 m
   });
   test("an L-shaped route gives a head, a turn and an arrival", () => {
@@ -279,24 +279,24 @@ describe("turn-by-turn directions", () => {
       nodes: [[30, -90], [30, -89.999], [30.001, -89.999]],
       edges: [{ a: 0, b: 1, name: "East St" }, { a: 1, b: 2, name: "North St" }],
     }).route(pt(30, -90), pt(30.001, -89.999));
-    expect(eastThenNorth.steps[1].text).toBe("Turn left onto North St");
+    expect(eastThenNorth.steps[1].text).toBe("Turn left onto North Street");
     const northThenEast = make({
       nodes: [[30, -90], [30.001, -90], [30.001, -89.999]],
       edges: [{ a: 0, b: 1, name: "North St" }, { a: 1, b: 2, name: "East St" }],
     }).route(pt(30, -90), pt(30.001, -89.999));
-    expect(northThenEast.steps[1].text).toBe("Turn right onto East St");
+    expect(northThenEast.steps[1].text).toBe("Turn right onto East Street");
   });
   test("a gentle bend is 'bear', and a name change on a straight road is 'continue'", () => {
     const bear = make({
       nodes: [[30, -90], [30.001, -90], [30.002, -89.9992]],
       edges: [{ a: 0, b: 1, name: "A St" }, { a: 1, b: 2, name: "B St" }],
     }).route(pt(30, -90), pt(30.002, -89.9992));
-    expect(bear.steps[1].text).toMatch(/^Bear right onto B St/);
+    expect(bear.steps[1].text).toMatch(/^Bear right onto B Street/);
     const cont = make({
       nodes: [[30, -90], [30.001, -90], [30.002, -90]],
       edges: [{ a: 0, b: 1, name: "A St" }, { a: 1, b: 2, name: "B St" }],
     }).route(pt(30, -90), pt(30.002, -90));
-    expect(cont.steps[1].text).toBe("Continue onto B St");
+    expect(cont.steps[1].text).toBe("Continue onto B Street");
   });
   test("a sharp reversal is called out", () => {
     const out = make({
@@ -327,7 +327,7 @@ describe("turn-by-turn directions", () => {
       nodes: [[30, -90], [30.001, -90], [30.001, -89.999]],
       edges: [{ a: 0, b: 1, name: "Main St" }, { a: 1, b: 2, name: "Main St" }],
     }).route(pt(30, -90), pt(30.001, -89.999));
-    expect(out.steps.map((s) => s.text)).toEqual(["Head north on Main St", "You have arrived"]);
+    expect(out.steps.map((s) => s.text)).toEqual(["Head north on Main Street", "You have arrived"]);
     expect(out.steps[0].distanceM).toBe(out.distanceM);
   });
   test("a turn at a junction on the same street says 'Turn right', not 'onto' the street you are already on", () => {
@@ -339,7 +339,7 @@ describe("turn-by-turn directions", () => {
         { a: 1, b: 3, name: "Side St" }, // makes node 1 a junction
       ],
     }).route(pt(30, -90), pt(30.001, -89.999));
-    expect(out.steps.map((s) => s.text)).toEqual(["Head north on Main St", "Turn right", "You have arrived"]);
+    expect(out.steps.map((s) => s.text)).toEqual(["Head north on Main Street", "Turn right", "You have arrived"]);
   });
   test("a quick dogleg is folded away instead of becoming two odd steps", () => {
     const out = make({
@@ -350,14 +350,14 @@ describe("turn-by-turn directions", () => {
         { a: 2, b: 3, name: "A St" },
       ],
     }).route(pt(30, -90), pt(30.002, -89.99991));
-    expect(out.steps.map((s) => s.text)).toEqual(["Head north on A St", "You have arrived"]);
+    expect(out.steps.map((s) => s.text)).toEqual(["Head north on A Street", "You have arrived"]);
   });
   test("a real junction on a different street is still a step even if short legs surround it", () => {
     const out = make({
       nodes: [[30, -90], [30.001, -90], [30.001, -89.999], [30.001, -89.998]],
       edges: [{ a: 0, b: 1, name: "A St" }, { a: 1, b: 2, name: "B St" }, { a: 2, b: 3, name: "B St" }],
     }).route(pt(30, -90), pt(30.001, -89.998));
-    expect(out.steps.map((s) => s.text)).toEqual(["Head north on A St", "Turn right onto B St", "You have arrived"]);
+    expect(out.steps.map((s) => s.text)).toEqual(["Head north on A Street", "Turn right onto B Street", "You have arrived"]);
   });
   test("steps are slower to walk than a flat road", () => {
     const flat = make({ nodes: [[30, -90], [30.001, -90]], edges: [{ a: 0, b: 1, cls: "footway", flags: WALK }] })

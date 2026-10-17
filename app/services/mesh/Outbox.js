@@ -271,6 +271,14 @@ class Outbox {
     };
   }
 
+  /** Drop every waiting message from memory (used when the person erases their data). */
+  reset() {
+    this.records.clear();
+    this.backoff.clear();
+    clearTimeout(this.debounceTimer);
+    this.debounceTimer = null;
+  }
+
   stop() {
     clearInterval(this.intervalTimer);
     clearTimeout(this.debounceTimer);

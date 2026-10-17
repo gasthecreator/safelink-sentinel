@@ -1,7 +1,10 @@
 // server/models/LogModel.js
 const fs = require("fs");
 const path = require("path");
-const DB_PATH = path.resolve("server_logs.json");
+const { dataFile } = require("../utils/dataPath");
+const { writeJsonAtomic } = require("../utils/atomicFile");
+const DB_PATH = dataFile("server_logs.json", process.cwd());
+const MAX_RECORDS = 1000;
 
 function load() {
   if (!fs.existsSync(DB_PATH)) fs.writeFileSync(DB_PATH, "[]");
@@ -9,7 +12,7 @@ function load() {
 }
 
 function save(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+  writeJsonAtomic(DB_PATH, data.length > MAX_RECORDS ? data.slice(-MAX_RECORDS) : data);
 }
 
 module.exports = {

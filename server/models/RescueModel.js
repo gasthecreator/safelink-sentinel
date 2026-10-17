@@ -1,8 +1,11 @@
 // server/models/RescueModel.js
 const fs = require("fs");
 const path = require("path");
+const { dataFile } = require("../utils/dataPath");
+const { writeJsonAtomic } = require("../utils/atomicFile");
 
-const DB_PATH = path.join(__dirname, "../../data/rescueLogs.json");
+const DB_PATH = dataFile("rescueLogs.json", path.join(__dirname, "../../data"));
+const MAX_RECORDS = 5000;
 const DATA_DIR = path.dirname(DB_PATH);
 
 // Ensure data directory exists
@@ -24,7 +27,8 @@ function load() {
 }
 
 function save(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+  if (data.rescues && data.rescues.length > MAX_RECORDS) data.rescues = data.rescues.slice(-MAX_RECORDS);
+  writeJsonAtomic(DB_PATH, data);
 }
 
 module.exports = {

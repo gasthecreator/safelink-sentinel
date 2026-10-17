@@ -8,13 +8,22 @@ import { useNavigation } from "@react-navigation/native";
 import PackStore from "../services/maps/PackStore";
 import { fetchCatalog, describeCatalog, rankByPosition } from "../services/maps/MapCatalog";
 import { getPositionForAlert } from "../services/location/LocationService";
+import { formatDistance } from "../services/units/units";
+import { useUnits } from "../services/units/UnitStore";
 import { listPacks } from "../services/navigation/packs";
 import { MAP_CATALOG_PUBLIC_KEY, CONFIRM_DOWNLOAD_ABOVE_BYTES } from "../constants/maps";
+import { t } from "../services/i18n/i18n";
+import { useLanguage } from "../services/i18n/LanguageStore";
+
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 const mb = (bytes) => (bytes < 1048576 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1048576).toFixed(1)} MB`);
 
 export default function OfflineMapsScreen() {
+  useLanguage(); // re-render in the new language when it is changed
   const navigation = useNavigation();
+  useUnits(); // re-render if the units setting changes
   const [installed, setInstalled] = useState([]);
   const [bundled, setBundled] = useState([]);
   const [free, setFree] = useState(null);
@@ -54,7 +63,7 @@ export default function OfflineMapsScreen() {
       setOffers(describeCatalog(catalog, await PackStore.installed()));
     } catch (err) {
       // opening the screen with no internet is normal, not an error worth shouting about
-      setError(quiet ? `Could not check for maps right now (${err.message}) Tap "Check for maps" to try again.` : err.message);
+      setError(quiet ? t("Could not check for maps right now ({reason}) Tap \"Check for maps\" to try again.", { reason: err.message }) : err.message);
     } finally {
       if (mounted.current) setChecking(false);
     }
@@ -86,22 +95,22 @@ export default function OfflineMapsScreen() {
     if (!mounted.current) return;
     setLocating(false);
     if (fix.position) setHere(fix.position);
-    else setHereNote("Could not get your position. Check that location is allowed for this app and try again.");
+    else setHereNote(t("Could not get your position. Check that location is allowed for this app and try again."));
   };
 
   const askDownload = (entry) => {
     if (entry.sizeBytes < CONFIRM_DOWNLOAD_ABOVE_BYTES) return download(entry);
-    Alert.alert(`Download ${entry.name}?`, `This is ${mb(entry.sizeBytes)}. Wi-Fi is best if mobile data is limited.`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Download", onPress: () => download(entry) },
+    Alert.alert(t("Download {name}?", { name: entry.name }), t("This is {size}. Wi-Fi is best if mobile data is limited.", { size: mb(entry.sizeBytes) }), [
+      { text: t("Cancel"), style: "cancel" },
+      { text: t("Download"), onPress: () => download(entry) },
     ]);
     return undefined;
   };
 
   const askRemove = (e) =>
-    Alert.alert(`Delete ${e.name}?`, "Directions in this area will not work offline until you download it again.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: async () => { await PackStore.remove(e.id); refresh(); } },
+    Alert.alert(t("Delete {name}?", { name: e.name }), t("Directions in this area will not work offline until you download it again."), [
+      { text: t("Cancel"), style: "cancel" },
+      { text: t("Delete"), style: "destructive", onPress: async () => { await PackStore.remove(e.id); refresh(); } },
     ]);
 
   const enabled = !!MAP_CATALOG_PUBLIC_KEY;
@@ -109,22 +118,22 @@ export default function OfflineMapsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
-        <Text style={styles.back}>‹ Back</Text>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
+        <Text style={styles.back}>{t("‹ Back")}</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>Offline maps</Text>
+      <Text accessibilityRole="header" style={styles.title}>{t("Offline maps")}</Text>
       <Text style={styles.intro}>
-        Download maps while you have internet. Later, directions to someone who sent an alert work with no signal at all.
+        {t("Download maps while you have internet. Later, directions to someone who sent an alert work with no signal at all.")}
       </Text>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>On this phone</Text>
-        {installed.length === 0 && bundled.length === 0 ? <Text style={styles.empty}>No maps yet.</Text> : null}
+        <Text accessibilityRole="header" style={styles.sectionTitle}>{t("On this phone")}</Text>
+        {installed.length === 0 && bundled.length === 0 ? <Text style={styles.empty}>{t("No maps yet.")}</Text> : null}
         {bundled.map((b) => (
           <View key={b.id} style={styles.row}>
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{b.name}</Text>
-              <Text style={styles.meta}>Built into the app</Text>
+              <Text style={styles.meta}>{t("Built into the app")}</Text>
             </View>
           </View>
         ))}
@@ -132,30 +141,30 @@ export default function OfflineMapsScreen() {
           <View key={e.id} style={styles.row}>
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{e.name}</Text>
-              <Text style={styles.meta}>{mb(e.sizeBytes)} · version {e.version}</Text>
+              <Text style={styles.meta}>{t("{size} · version {version}", { size: mb(e.sizeBytes), version: e.version })}</Text>
               <Text style={styles.meta}>{e.attribution}</Text>
             </View>
-            <TouchableOpacity disabled={busy} onPress={() => askRemove(e)}>
-              <Text style={[styles.link, { color: "#DC2626" }]}>Delete</Text>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" disabled={busy} onPress={() => askRemove(e)}>
+              <Text style={[styles.link, { color: "#DC2626" }]}>{t("Delete")}</Text>
             </TouchableOpacity>
           </View>
         ))}
-        {free !== null ? <Text style={styles.meta}>Free space on this phone: {mb(free)}</Text> : null}
+        {free !== null ? <Text style={styles.meta}>{t("Free space on this phone: {size}", { size: mb(free) })}</Text> : null}
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Available to download</Text>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>{t("Available to download")}</Text>
         {!enabled ? (
-          <Text style={styles.empty}>Map downloads are not set up in this version of the app yet.</Text>
+          <Text style={styles.empty}>{t("Map downloads are not set up in this version of the app yet.")}</Text>
         ) : (
           <>
-            <TouchableOpacity style={[styles.button, (checking || busy) && styles.disabled]} disabled={checking || busy} onPress={() => check(false)}>
-              {checking ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{offers ? "Check again" : "Check for maps"}</Text>}
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, (checking || busy) && styles.disabled]} disabled={checking || busy} onPress={() => check(false)}>
+              {checking ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{offers ? t("Check again") : t("Check for maps")}</Text>}
             </TouchableOpacity>
-            {offers && offers.length === 0 ? <Text style={styles.empty}>No maps are listed right now.</Text> : null}
+            {offers && offers.length === 0 ? <Text style={styles.empty}>{t("No maps are listed right now.")}</Text> : null}
             {offers && offers.length > 0 ? (
-              <TouchableOpacity onPress={findMe} disabled={locating}>
-                <Text style={styles.link2}>{locating ? "Finding you..." : here ? "Maps near you (tap to refresh)" : "Show maps near me"}</Text>
+              <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={findMe} disabled={locating}>
+                <Text style={styles.link2}>{locating ? t("Finding you...") : here ? t("Maps near you (tap to refresh)") : t("Show maps near me")}</Text>
               </TouchableOpacity>
             ) : null}
             {hereNote ? <Text style={styles.error}>{hereNote}</Text> : null}
@@ -165,25 +174,25 @@ export default function OfflineMapsScreen() {
                 <View key={entry.id} style={styles.row}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{entry.name}</Text>
-                    <Text style={styles.meta}>{mb(entry.sizeBytes)} · version {entry.version}</Text>
+                    <Text style={styles.meta}>{t("{size} · version {version}", { size: mb(entry.sizeBytes), version: entry.version })}</Text>
                     {here ? (
                       <Text style={coversYou ? styles.near : styles.meta}>
-                        {coversYou ? "Covers where you are" : `About ${distanceM < 1000 ? `${Math.round(distanceM / 10) * 10} m` : `${Math.round(distanceM / 1000)} km`} from you`}
+                        {coversYou ? t("Covers where you are") : t("About {distance} from you", { distance: formatDistance(distanceM) })}
                       </Text>
                     ) : null}
                     {mine ? (
                       <Text style={styles.meta}>
-                        Downloading… {active.total ? Math.min(100, Math.round((active.bytes / active.total) * 100)) : 0}%
+                        {t("Downloading… {percent}%", { percent: active.total ? Math.min(100, Math.round((active.bytes / active.total) * 100)) : 0 })}
                       </Text>
                     ) : null}
                   </View>
                   {mine ? (
-                    <TouchableOpacity onPress={() => PackStore.cancel()}><Text style={styles.link}>Cancel</Text></TouchableOpacity>
+                    <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => PackStore.cancel()}><Text style={styles.link}>{t("Cancel")}</Text></TouchableOpacity>
                   ) : status === "installed" ? (
-                    <Text style={styles.meta}>Installed</Text>
+                    <Text style={styles.meta}>{t("Installed")}</Text>
                   ) : (
-                    <TouchableOpacity disabled={busy} onPress={() => askDownload(entry)}>
-                      <Text style={[styles.link, busy && styles.disabled]}>{status === "update" ? "Update" : "Download"}</Text>
+                    <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" disabled={busy} onPress={() => askDownload(entry)}>
+                      <Text style={[styles.link, busy && styles.disabled]}>{status === "update" ? t("Update") : t("Download")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -195,7 +204,7 @@ export default function OfflineMapsScreen() {
       </View>
 
       <Text style={styles.footnote}>
-        Map data © OpenStreetMap contributors (ODbL). Each map is checked against a signed list before it is used.
+        {t("Map data © OpenStreetMap contributors (ODbL). Each map is checked against a signed list before it is used.")}
       </Text>
     </ScrollView>
   );
@@ -203,7 +212,7 @@ export default function OfflineMapsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8FAFC", paddingTop: 56, paddingHorizontal: 16 },
-  back: { color: "#3B82F6", fontSize: 16, fontWeight: "600", marginBottom: 6 },
+  back: { color: "#2563EB", fontSize: 16, fontWeight: "600", marginBottom: 6 },
   title: { fontSize: 26, fontWeight: "800", color: "#0F172A", marginBottom: 6 },
   intro: { color: "#475569", fontSize: 14, lineHeight: 20, marginBottom: 14 },
   card: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 16 },
@@ -212,11 +221,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#E2E8F0", marginTop: 8 },
   name: { fontSize: 15, fontWeight: "600", color: "#0F172A" },
   meta: { color: "#64748B", fontSize: 12, marginTop: 2 },
-  link: { color: "#3B82F6", fontWeight: "700", fontSize: 15, paddingLeft: 12 },
-  button: { backgroundColor: "#10B981", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  link: { color: "#2563EB", fontWeight: "700", fontSize: 15, paddingLeft: 12 },
+  button: { backgroundColor: "#047857", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
   disabled: { opacity: 0.5 },
   buttonText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  link2: { color: "#3B82F6", fontWeight: "600", fontSize: 14, marginTop: 12 },
+  link2: { color: "#2563EB", fontWeight: "600", fontSize: 14, marginTop: 12 },
   near: { color: "#059669", fontSize: 12, fontWeight: "700", marginTop: 2 },
   error: { marginTop: 12, color: "#B91C1C", fontSize: 13, lineHeight: 18 },
   footnote: { color: "#64748B", fontSize: 12, lineHeight: 17 },

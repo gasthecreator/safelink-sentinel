@@ -20,6 +20,13 @@ import MeshManager from "../services/mesh/MeshManager";
 import NodeDiscovery from "../services/mesh/NodeDiscovery";
 import Outbox from "../services/mesh/Outbox";
 import { describePosition } from "../services/location/position";
+import { t, N_ } from "../services/i18n/i18n";
+import { useLanguage } from "../services/i18n/LanguageStore";
+
+const PRIORITY_WORDS = { critical: N_("critical"), high: N_("high"), normal: N_("normal"), low: N_("low") };
+
+// small buttons stay easy to hit: the touch area is 10 points bigger on every side
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 // Where the sender is: their own words first, then the coordinates if they shared any.
 function describeWhere(alert) {
@@ -31,15 +38,16 @@ function describeWhere(alert) {
 // "5 min ago"-style label; falls back to "Just now" when there is no usable time.
 function formatTime(value) {
   const ms = value ? Date.parse(value) : NaN;
-  if (Number.isNaN(ms)) return "Just now";
+  if (Number.isNaN(ms)) return t("Just now");
   const minutes = Math.floor((Date.now() - ms) / 60000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 1) return t("Just now");
+  if (minutes < 60) return t("{minutes} min ago", { minutes });
   const hours = Math.floor(minutes / 60);
-  return hours < 24 ? `${hours} h ago` : `${Math.floor(hours / 24)} d ago`;
+  return hours < 24 ? t("{hours} h ago", { hours }) : t("{days} d ago", { days: Math.floor(hours / 24) });
 }
 
 export default function MeshHomeScreen({ navigation }) {
+  useLanguage(); // re-render in the new language when it is changed
   const [peers, setPeers] = useState([]);
   const [health, setHealth] = useState({ reliabilityScore: "Critical", successRate: 0 });
   const [offlineModal, setOfflineModal] = useState(false);
@@ -190,7 +198,7 @@ export default function MeshHomeScreen({ navigation }) {
     
     return {
       id: alert.id || `alert-${Date.now()}`,
-      title: alert.title || alert.message || "Alert",
+      title: alert.title || alert.message || t("Alert"),
       description: alert.description || alert.body || alert.message || "",
       address: alert.address || alert.locationLabel || describeWhere(alert),
       location: alert.location || (alert.latitude && alert.longitude ? {
@@ -217,8 +225,8 @@ export default function MeshHomeScreen({ navigation }) {
         
         <View style={styles.header}>
           <View>
-            <Text style={styles.appName}>SafeLink Mesh</Text>
-            <Text style={styles.appSubtitle}>Offline lifeline for your community</Text>
+            <Text style={styles.appName}>{t("SafeLink Mesh")}</Text>
+            <Text style={styles.appSubtitle}>{t("Offline lifeline for your community")}</Text>
           </View>
           <Animatable.Text
             animation="pulse"
@@ -246,29 +254,29 @@ export default function MeshHomeScreen({ navigation }) {
           )}
 
           <View style={styles.quickActions}>
-            <Text style={styles.sectionTitle}>Quick actions</Text>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>{t("Quick actions")}</Text>
             
             <Animatable.View animation="fadeInUp" delay={300} duration={800}>
               <View style={styles.actionsRow}>
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
                   style={[styles.actionCard, styles.actionPrimary]}
                   onPress={handleRequestHelp}
                 >
                   <Text style={styles.actionIcon}>🆘</Text>
-                  <Text style={styles.actionTitle}>Request help</Text>
+                  <Text style={styles.actionTitle}>{t("Request help")}</Text>
                   <Text style={styles.actionText}>
-                    Send a distress message with your location.
+                    {t("Send a distress message with your location.")}
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
                   style={styles.actionCard}
                   onPress={handleSendUpdate}
                 >
                   <Text style={styles.actionIcon}>✅</Text>
-                  <Text style={styles.actionTitle}>Status update</Text>
+                  <Text style={styles.actionTitle}>{t("Status update")}</Text>
                   <Text style={styles.actionText}>
-                    Let others know you're safe or available to help.
+                    {t("Let others know you're safe or available to help.")}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -276,20 +284,20 @@ export default function MeshHomeScreen({ navigation }) {
 
             <Animatable.View animation="fadeInUp" delay={600} duration={800}>
               <View style={styles.actionsRow}>
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
                   style={styles.actionCardSmall}
                   onPress={handleViewPeers}
                 >
-                  <Text style={styles.smallTitle}>Nearby devices</Text>
-                  <Text style={styles.smallText}>{peers.length} connected</Text>
+                  <Text style={styles.smallTitle}>{t("Nearby devices")}</Text>
+                  <Text style={styles.smallText}>{t("{count} connected", { count: peers.length })}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
                   style={styles.actionCardSmall}
                   onPress={handleStressTest}
                 >
-                  <Text style={styles.smallTitle}>Stress test</Text>
-                  <Text style={styles.smallText}>Check mesh performance</Text>
+                  <Text style={styles.smallTitle}>{t("Stress test")}</Text>
+                  <Text style={styles.smallText}>{t("Check mesh performance")}</Text>
                 </TouchableOpacity>
               </View>
             </Animatable.View>
@@ -298,13 +306,13 @@ export default function MeshHomeScreen({ navigation }) {
           <NearbyDevices peers={peers} />
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Active alerts & requests</Text>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>{t("Active alerts & requests")}</Text>
             
             {alerts.length === 0 ? (
               <View style={styles.emptyAlerts}>
-                <Text style={styles.emptyText}>No active alerts yet.</Text>
+                <Text style={styles.emptyText}>{t("No active alerts yet.")}</Text>
                 <Text style={styles.emptySubtext}>
-                  Send a message or relief request to get started.
+                  {t("Send a message or relief request to get started.")}
                 </Text>
               </View>
             ) : (
@@ -313,7 +321,15 @@ export default function MeshHomeScreen({ navigation }) {
                 if (!formatted) return null;
                 
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button"
+                    accessibilityLabel={[
+                      t("{priority} priority.", { priority: t(PRIORITY_WORDS[formatted.priority] || PRIORITY_WORDS.normal) }),
+                      `${formatted.title}.`,
+                      formatted.description || "",
+                      formatted.address ? t("Where: {address}.", { address: formatted.address }) : "",
+                      formatted.time || "",
+                    ].filter(Boolean).join(" ")}
+                    accessibilityHint={t("Opens the alert")}
                     key={formatted.id}
                     onPress={() =>
                       navigation.navigate("AlertDetail", {
@@ -337,7 +353,7 @@ export default function MeshHomeScreen({ navigation }) {
             {/* Fallback example alerts if no real data */}
             {alerts.length === 0 && __DEV__ && (
               <>
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel={t("Example alert: medical support needed")}
                   onPress={() =>
                     navigation.navigate("AlertDetail", {
                       alert: {
@@ -365,7 +381,7 @@ export default function MeshHomeScreen({ navigation }) {
                   />
                 </TouchableOpacity>
                 
-                <TouchableOpacity
+                <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel={t("Example alert: water needed")}
                   onPress={() =>
                     navigation.navigate("AlertDetail", {
                       alert: {
@@ -396,17 +412,23 @@ export default function MeshHomeScreen({ navigation }) {
             )}
           </View>
           <View style={styles.footerLinks}>
-            <TouchableOpacity onPress={() => navigation.navigate("ReportRoad")}>
-              <Text style={styles.diagnosticsLink}>Report a road</Text>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Nearby")}>
+              <Text style={styles.diagnosticsLink}>{t("Find help nearby")}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("Places")}>
-              <Text style={styles.diagnosticsLink}>Saved places</Text>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("ReportRoad")}>
+              <Text style={styles.diagnosticsLink}>{t("Report a road")}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("OfflineMaps")}>
-              <Text style={styles.diagnosticsLink}>Offline maps</Text>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Places")}>
+              <Text style={styles.diagnosticsLink}>{t("Saved places")}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("Diagnostics")}>
-              <Text style={styles.diagnosticsLink}>Diagnostics</Text>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("OfflineMaps")}>
+              <Text style={styles.diagnosticsLink}>{t("Offline maps")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Settings")}>
+              <Text style={styles.diagnosticsLink}>{t("Settings")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.navigate("Diagnostics")}>
+              <Text style={styles.diagnosticsLink}>{t("Diagnostics")}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -417,7 +439,7 @@ export default function MeshHomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   waitingText: {
-    color: "#B45309",
+    color: "#92400E",
     backgroundColor: "#FEF3C7",
     borderRadius: 10,
     padding: 10,

@@ -1,12 +1,15 @@
 // server/models/DisasterSentinelModel.js
 const fs = require("fs");
 const path = require("path");
+const { dataFile } = require("../utils/dataPath");
+const { writeJsonAtomic } = require("../utils/atomicFile");
 
-const DATA_DIR = path.join(__dirname, "../../data");
-const USERS_FILE = path.join(DATA_DIR, "sentinelUsers.json");
-const ALERTS_FILE = path.join(DATA_DIR, "sentinelAlerts.json");
-const CACHE_FILE = path.join(DATA_DIR, "sentinelCache.json");
-const LAST_ALERT_FILE = path.join(DATA_DIR, "sentinelLastAlert.json");
+const DEFAULT_DIR = path.join(__dirname, "../../data");
+const DATA_DIR = process.env.SAFELINK_DATA_DIR ? path.resolve(process.env.SAFELINK_DATA_DIR) : DEFAULT_DIR;
+const USERS_FILE = dataFile("sentinelUsers.json", DEFAULT_DIR);
+const ALERTS_FILE = dataFile("sentinelAlerts.json", DEFAULT_DIR);
+const CACHE_FILE = dataFile("sentinelCache.json", DEFAULT_DIR);
+const LAST_ALERT_FILE = dataFile("sentinelLastAlert.json", DEFAULT_DIR);
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -26,7 +29,7 @@ function loadJson(filePath, fallback) {
 }
 
 function saveJson(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  writeJsonAtomic(filePath, data);
 }
 
 module.exports = {

@@ -1,9 +1,17 @@
 // app/components/ConnectionStatus.js
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, AccessibilityInfo } from "react-native";
 import * as Animatable from "react-native-animatable";
+import { t, tp } from "../services/i18n/i18n";
 
 export default function ConnectionStatus({ health, peersCount }) {
+  // the status dot pulses for ever; people who asked their phone for less motion do not get that
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => sub && sub.remove && sub.remove();
+  }, []);
   const status = health?.reliabilityScore || "Good";
   const successRate = health?.successRate || 0;
   
@@ -11,11 +19,22 @@ export default function ConnectionStatus({ health, peersCount }) {
   if (status === "Warning") color = "#F59E0B";
   if (status === "Critical") color = "#EF4444";
 
+  const summary =
+    status === "Critical" ? t("Unstable connection") : status === "Warning" ? t("Some delays") : t("Connected and stable");
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible
+      accessibilityRole="summary"
+      accessibilityLabel={t("Mesh network: {summary}. {devices} nearby. {rate} percent of messages delivered.", {
+        summary,
+        devices: tp("{count} device", "{count} devices", peersCount),
+        rate: successRate,
+      })}
+    >
       <View style={styles.left}>
         <Animatable.View
-          animation="pulse"
+          animation={reduceMotion ? undefined : "pulse"}
           iterationCount="infinite"
           duration={1500}
           easing="ease-in-out"
@@ -31,22 +50,18 @@ export default function ConnectionStatus({ health, peersCount }) {
           ]}
         />
         <View>
-          <Text style={styles.title}>Mesh Network</Text>
+          <Text style={styles.title}>{t("Mesh Network")}</Text>
           <Text style={styles.subtitle}>
-            {status === "Critical"
-              ? "Unstable connection"
-              : status === "Warning"
-              ? "Some delays"
-              : "Connected and stable"}
+            {summary}
           </Text>
         </View>
       </View>
       <View style={styles.right}>
         <View style={styles.badge}>
           <Text style={styles.badgeIcon}>👥</Text>
-          <Text style={styles.badgeText}>{peersCount} devices</Text>
+          <Text style={styles.badgeText}>{tp("{count} device", "{count} devices", peersCount)}</Text>
         </View>
-        <Text style={styles.meta}>{successRate}% delivery</Text>
+        <Text style={styles.meta}>{t("{rate}% delivery", { rate: successRate })}</Text>
       </View>
     </View>
   );
@@ -60,6 +75,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "space-between",
+    // with very large text the two halves go on separate lines instead of being cut off
+    flexWrap: "wrap",
+    rowGap: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -69,6 +87,7 @@ const styles = StyleSheet.create({
   left: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 1,
   },
   dot: {
     width: 14,

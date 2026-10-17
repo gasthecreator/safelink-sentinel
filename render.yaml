@@ -17,6 +17,8 @@ services:
         sync: false
       - key: GOOGLE_API_KEY
         sync: false
+      - key: ADMIN_TOKEN
+        generateValue: true # for deleting/changing other people's data; read it from the Render dashboard
       - key: FRONTEND_URL
         value: https://safelink-dashboard.onrender.com
     healthCheckPath: /health

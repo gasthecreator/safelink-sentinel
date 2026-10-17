@@ -1,8 +1,11 @@
 // server/models/HelpRequestModel.js
 const fs = require("fs");
 const path = require("path");
+const { dataFile } = require("../utils/dataPath");
+const { writeJsonAtomic } = require("../utils/atomicFile");
 
-const DB_PATH = path.join(__dirname, "../../data/helpRequests.json");
+const DB_PATH = dataFile("helpRequests.json", path.join(__dirname, "../../data"));
+const MAX_RECORDS = 5000;
 const DATA_DIR = path.dirname(DB_PATH);
 
 // Ensure data directory exists
@@ -23,7 +26,8 @@ function load() {
 }
 
 function save(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+  if (data.requests && data.requests.length > MAX_RECORDS) data.requests = data.requests.slice(-MAX_RECORDS);
+  writeJsonAtomic(DB_PATH, data);
 }
 
 // Simple AI summarization - extracts key help type from message

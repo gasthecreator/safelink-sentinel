@@ -7,6 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { v4 as uuidv4 } from "uuid";
 import { sanitizePlace } from "./places.js";
 import { sanitizePosition, sanitizeText, MAX_LABEL } from "./position.js";
+import { t } from "../i18n/i18n.js";
 
 const STORAGE_KEY = "@safelink_places";
 export const MAX_PLACES = 50;
@@ -38,11 +39,11 @@ export async function listPlaces() {
  */
 export async function addPlace({ name, position, kind = "gps" }) {
   const cleanName = sanitizeText(name, MAX_LABEL);
-  if (!cleanName) throw new Error("Give the place a name.");
+  if (!cleanName) throw new Error(t("Give the place a name."));
   const cleanPosition = sanitizePosition(position);
-  if (!cleanPosition) throw new Error("That position isn't valid.");
+  if (!cleanPosition) throw new Error(t("That position isn't valid."));
   const places = await readAll();
-  if (places.length >= MAX_PLACES) throw new Error(`You can save up to ${MAX_PLACES} places. Delete one first.`);
+  if (places.length >= MAX_PLACES) throw new Error(t("You can save up to {max} places. Delete one first.", { max: MAX_PLACES }));
 
   const place = sanitizePlace({
     id: uuidv4(),

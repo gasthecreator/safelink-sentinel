@@ -8,6 +8,7 @@ import RouterAI from "../ai/RouterAI.js";
 import ReliefRequestStore from "../storage/ReliefRequestStore.js";
 import { v4 as uuidv4 } from "uuid";
 import { sanitizePosition, sanitizeText, sanitizeMultiline } from "../location/position.js";
+import { t } from "../i18n/i18n.js";
 
 const PRIORITIES = ["critical", "high", "normal", "low"];
 const MAX_INCOMING_TEXT = 2000;
@@ -48,14 +49,14 @@ class AlertManager {
 
       await this.evaluateCondition(health.reliabilityScore === "Critical", {
         type: "network_failure",
-        message: "Connectivity failure detected in your area.",
+        message: t("Connectivity failure detected in your area."),
         priority: "critical",
         radiusKm: 50,
       });
 
       await this.evaluateCondition(health.syncLag > 10, {
         type: "sync_backlog",
-        message: "Mesh congestion detected. Delays possible.",
+        message: t("Mesh congestion detected. Delays possible."),
         priority: "high",
         radiusKm: 20,
       });
@@ -170,7 +171,7 @@ class AlertManager {
   async createReliefRequestAndAlert(senderId, payload) {
     const {
       type = "general",
-      title = "Relief request",
+      title = t("Relief request"),
       description = "",
       items = [],
       amountNeeded = null,
@@ -208,10 +209,10 @@ class AlertManager {
     const text = `[RELIEF] ${title} - ${type.toUpperCase()}\n` +
       `${description}\n` +
       (amountNeeded
-        ? `Requested value: ${amountNeeded} ${currency}\n`
+        ? `${t("Requested value: {amount} {currency}", { amount: amountNeeded, currency })}\n`
         : "") +
       (items.length
-        ? `Key items: ${items.map((i) => `${i.name} x${i.qty}${i.unit || ""}`).join(", ")}`
+        ? `${t("Key items: {items}", { items: items.map((i) => `${i.name} x${i.qty}${i.unit || ""}`).join(", ") })}`
         : "");
 
     const summary = await GeoBroadcast.broadcast(senderId, text, {
@@ -249,6 +250,11 @@ class AlertManager {
   // ===== INCOMING (from other nodes) =====
 
   // Turn a verified message received over the mesh into something the UI shows.
+  /** Forget received alerts (used when the person erases their data). */
+  reset() {
+    this.incomingAlerts = [];
+  }
+
   async handleIncoming(msg) {
     // Everything here came from another phone. A valid signature shows who sent it, not that it
     // is sensible: text is cleaned and capped, the priority must be a known one, positions are validated.
@@ -267,7 +273,7 @@ class AlertManager {
           id,
           requesterId: msg.from,
           type: "relief",
-          title: firstLine.replace(/^\[RELIEF\]\s*/, "") || "Relief request",
+          title: firstLine.replace(/^\[RELIEF\]\s*/, "") || t("Relief request"),
           description: content,
           items: [],
           priority,

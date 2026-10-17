@@ -66,6 +66,41 @@ function classifyWay(tags) {
   return { walk, drive, oneway };
 }
 
+// Places worth finding in an emergency. Kinds are fixed (the app has a name and icon for each).
+const PLACE_KINDS = ["hospital", "clinic", "pharmacy", "fire", "police", "shelter", "assembly", "water"];
+
+/** OSM tags -> one of PLACE_KINDS, or null. */
+function classifyPlace(tags) {
+  if (!tags) return null;
+  switch (tags.amenity) {
+    case "hospital": return "hospital";
+    case "clinic": return "clinic";
+    case "pharmacy": return "pharmacy";
+    case "fire_station": return "fire";
+    case "police": return "police";
+    case "drinking_water":
+    case "water_point": return "water";
+    case "social_facility": return tags.social_facility === "shelter" ? "shelter" : null;
+    default: break;
+  }
+  if (tags.emergency === "assembly_point") return "assembly";
+  if (tags.social_facility === "shelter") return "shelter";
+  if (tags.healthcare === "hospital") return "hospital";
+  return null;
+}
+
+const KIND_LABEL = {
+  hospital: "Hospital", clinic: "Clinic", pharmacy: "Pharmacy", fire: "Fire station", police: "Police",
+  shelter: "Shelter", assembly: "Assembly point", water: "Drinking water",
+};
+
+/** Where an OSM element is: a node's own position, or the centre Overpass gives a way/relation. */
+function placePosition(e) {
+  if (e.type === "node" && Number.isFinite(e.lat) && Number.isFinite(e.lon)) return [e.lat, e.lon];
+  if (e.center && Number.isFinite(e.center.lat) && Number.isFinite(e.center.lon)) return [e.center.lat, e.center.lon];
+  return null;
+}
+
 /**
  * @param {{elements: Array}} osm Overpass JSON with `way` elements and their `node`s
  * @param {{name?: string, bbox?: number[], source?: string, now?: Date}} options
@@ -120,6 +155,25 @@ function osmToPack(osm, options = {}) {
     }
   }
 
+  // Places (hospitals, shelters, water...). The same place often appears as a node and as its
+  // building outline: keep one of the same kind and name within 80 m.
+  const poiKinds = [];
+  const pois = [];
+  const seenPlaces = [];
+  for (const e of els) {
+    const kind = classifyPlace(e.tags);
+    const pos = kind && placePosition(e);
+    if (!pos) continue;
+    const label = (e.tags.name || "").trim().slice(0, 80) || KIND_LABEL[kind];
+    if (seenPlaces.some((q) => q.kind === kind && q.label === label && haversineM(q.lat, q.lon, pos[0], pos[1]) < 80)) continue;
+    seenPlaces.push({ kind, label, lat: pos[0], lon: pos[1] });
+    let nameIdx = nameIndex.get(label);
+    if (nameIdx === undefined) { nameIdx = names.length; names.push(label); nameIndex.set(label, nameIdx); }
+    let kindIdx = poiKinds.indexOf(kind);
+    if (kindIdx < 0) { kindIdx = poiKinds.length; poiKinds.push(kind); }
+    pois.push(kindIdx, Math.round(pos[0] * 1e6), Math.round(pos[1] * 1e6), nameIdx);
+  }
+
   // bbox is the area that was asked for and is complete; extent is where data actually
   // exists (roads that cross the edge are included whole, but beyond bbox they are partial).
   const extent = boundsOf(nodes);
@@ -132,11 +186,13 @@ function osmToPack(osm, options = {}) {
     builtAt: (options.now || new Date()).toISOString(),
     source: options.source || "OpenStreetMap via Overpass API",
     attribution: "© OpenStreetMap contributors (ODbL)",
-    stats: { nodes: nodes.length / 2, edges: edges.length / 6, skippedWays },
+    stats: { nodes: nodes.length / 2, edges: edges.length / 6, skippedWays, places: pois.length / 4 },
     nodes,
     edges,
     names,
     classes,
+    poiKinds,
+    pois,
   };
 }
 
@@ -149,4 +205,4 @@ function boundsOf(nodes) {
   return nodes.length ? [s / 1e6, w / 1e6, n / 1e6, e / 1e6] : [0, 0, 0, 0];
 }
 
-module.exports = { osmToPack, classifyWay, haversineM };
+module.exports = { osmToPack, classifyWay, classifyPlace, haversineM, PLACE_KINDS, KIND_LABEL };

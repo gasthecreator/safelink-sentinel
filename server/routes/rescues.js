@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const RescueController = require("../controllers/RescueController");
+const { requireAdmin } = require("../middleware/security");
 
 // POST /api/rescues - Log a new rescue event
 router.post("/", RescueController.logRescueEvent);
@@ -17,7 +18,7 @@ router.get("/stats", RescueController.getRescueStats);
 router.get("/:id", RescueController.getRescueById);
 
 // DELETE /api/rescues - Clear all rescue logs (use with caution)
-router.delete("/", RescueController.clearRescues);
+router.delete("/", requireAdmin(), RescueController.clearRescues); // erases everyone's records: admin only
 
 module.exports = router;
 
