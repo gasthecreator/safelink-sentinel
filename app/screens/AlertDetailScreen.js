@@ -59,6 +59,7 @@ export default function AlertDetailScreen() {
 
   useEffect(() => {
     if (SHOW_MAP_VIEW) loadRoute();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once when the screen opens
   }, []);
 
   const loadRoute = async () => {

@@ -118,7 +118,7 @@ function osmToPack(osm, options = {}) {
   const nodes = [];
   const edges = [];
 
-  const useNode = (id) => {
+  const takeNode = (id) => {
     let i = nodeIndex.get(id);
     if (i === undefined) {
       const [lat, lon] = nodePos.get(id);
@@ -151,7 +151,7 @@ function osmToPack(osm, options = {}) {
       const lenDm = Math.max(1, Math.round(haversineM(latA, lonA, latB, lonB) * 10));
       if (kind.oneway === -1) { [idA, idB] = [idB, idA]; } // normalise so one-way always means a->b
       const flags = (kind.walk ? 1 : 0) | (kind.drive ? 2 : 0) | (kind.oneway !== 0 && kind.drive ? 4 : 0);
-      edges.push(useNode(idA), useNode(idB), lenDm, clsIdx, flags, nameIdx);
+      edges.push(takeNode(idA), takeNode(idB), lenDm, clsIdx, flags, nameIdx);
     }
   }
 

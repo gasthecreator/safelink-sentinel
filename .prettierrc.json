@@ -1,0 +1,12 @@
+{
+  "printWidth": 120,
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "overrides": [
+    {
+      "files": "safelink-dashboard/**/*.{js,jsx}",
+      "options": { "semi": false, "singleQuote": true, "trailingComma": "es5" }
+    }
+  ]
+}

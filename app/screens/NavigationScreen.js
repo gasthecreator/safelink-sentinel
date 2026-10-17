@@ -163,6 +163,8 @@ export default function NavigationScreen() {
     // Blocked roads are only routed around if the person wants that; hazards are always listed.
     const avoid = avoidOn ? closures : closures.filter((c) => c.kind === "hazard");
     return { kind: "routed", pack, result: computeRoute(pack, routeStart, destination, { mode, avoid, formatDistance: (m) => formatDistance(m, units) }) };
+    // `language` is not read in here, but the route text comes from t(), which reads a module global: recompute when it changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destination, routeStart, found, mode, closures, avoidOn, units, language]);
 
   const applyTyped = () => {

@@ -57,9 +57,11 @@ Testing the mesh needs two real phones: [docs/DEVICE_TESTING.md](docs/DEVICE_TES
 npm test               # server tests, then app tests
 npm run test:app
 npm run test:server
+npm run lint           # ESLint: errors fail CI, warnings are being worked down
+npm run format:changed # Prettier check on the files you changed
 ```
 
-CI (`.github/workflows/ci.yml`) runs the app and server tests, bundles the JavaScript for both platforms, builds the dashboard, and builds the Android release APK and the iOS simulator app on every pull request.
+CI (`.github/workflows/ci.yml`) runs ESLint, the app and server tests, bundles the JavaScript for both platforms, builds the dashboard, and builds the Android release APK and the iOS simulator app on every pull request.
 
 ## Documentation
 

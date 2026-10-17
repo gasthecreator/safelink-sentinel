@@ -28,7 +28,7 @@ export function formatRelativeTime(input) {
 
 export function extractTitleFromCaption(caption) {
   if (!caption) return ''
-  const match = caption.match(/(.+?[\.\!\?])(\s|$)/)
+  const match = caption.match(/(.+?[.!?])(\s|$)/)
   if (match) return match[1].trim()
   return caption.length > 60 ? `${caption.slice(0, 57)}…` : caption
 }

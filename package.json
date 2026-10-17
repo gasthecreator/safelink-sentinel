@@ -20,7 +20,10 @@
     "test:server": "npm test -w server",
     "test:app": "npm test -w app -- --ci",
     "start:windows": "scripts\\start.bat",
-    "stop:windows": "scripts\\stop.bat"
+    "stop:windows": "scripts\\stop.bat",
+    "lint": "eslint . --ext .js,.jsx",
+    "lint:fix": "eslint . --ext .js,.jsx --fix",
+    "format:changed": "node scripts/format-changed.js"
   },
   "keywords": [
     "mesh-network",
@@ -42,5 +45,11 @@
   },
   "bugs": {
     "url": "https://github.com/gasthecreator/safelink-sentinel/issues"
+  },
+  "devDependencies": {
+    "@react-native/eslint-config": "^0.73.2",
+    "eslint": "^8.57.1",
+    "prettier": "^2.8.8",
+    "typescript": "^5.3.3"
   }
 }
