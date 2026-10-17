@@ -11,6 +11,8 @@
 //   - a single "passable" from a stranger does NOT cancel a closure (it is shown as disputed);
 //   - everything expires, so a stale report can't block a road for ever.
 
+import { t } from "../i18n/i18n.js";
+
 import { sanitizePosition, sanitizeText } from "../location/position.js";
 
 export const KINDS = ["blocked", "passable", "hazard"];
@@ -137,7 +139,7 @@ export function effectiveClosures(reports, now = Date.now()) {
 }
 
 export function describeKind(kind) {
-  return kind === "blocked" ? "Road blocked" : kind === "passable" ? "Road passable" : "Hazard";
+  return kind === "blocked" ? t("Road blocked") : kind === "passable" ? t("Road passable") : t("Hazard");
 }
 
 /** The text that goes in the message body (so a phone without this feature still reads it). */

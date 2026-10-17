@@ -4,16 +4,17 @@
 // out by the normal router).
 
 import { distanceM, bearingDeg, compassName } from "./router.js";
+import { N_ } from "../i18n/i18n.js";
 
 export const PLACE_INFO = {
-  hospital: { label: "Hospital", plural: "Hospitals" },
-  clinic: { label: "Clinic", plural: "Clinics" },
-  pharmacy: { label: "Pharmacy", plural: "Pharmacies" },
-  fire: { label: "Fire station", plural: "Fire stations" },
-  police: { label: "Police", plural: "Police" },
-  shelter: { label: "Shelter", plural: "Shelters" },
-  assembly: { label: "Assembly point", plural: "Assembly points" },
-  water: { label: "Drinking water", plural: "Drinking water" },
+  hospital: { label: N_("Hospital"), plural: N_("Hospitals") },
+  clinic: { label: N_("Clinic"), plural: N_("Clinics") },
+  pharmacy: { label: N_("Pharmacy"), plural: N_("Pharmacies") },
+  fire: { label: N_("Fire station"), plural: N_("Fire stations") },
+  police: { label: N_("Police"), plural: N_("Police") },
+  shelter: { label: N_("Shelter"), plural: N_("Shelters") },
+  assembly: { label: N_("Assembly point"), plural: N_("Assembly points") },
+  water: { label: N_("Drinking water"), plural: N_("Drinking water") },
 };
 
 /** Which kinds of place this pack has, with how many: [{ kind, label, plural, count }] in a useful order. */

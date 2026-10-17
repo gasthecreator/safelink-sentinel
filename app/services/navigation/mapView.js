@@ -2,6 +2,7 @@
 // Pure helpers for drawing the offline map: fitting a view to some points, projecting
 // coordinates to pixels, choosing which roads to draw, and a scale bar.
 import { formatDistance as fmt, scaleSteps } from "../units/units.js";
+import { t } from "../i18n/i18n.js";
 
 
 const M_PER_DEG_LAT = 111320;
@@ -81,7 +82,7 @@ export function formatDistance(m, units) {
 
 export function formatDuration(s) {
   const minutes = Math.round(s / 60);
-  if (minutes < 1) return "under a minute";
+  if (minutes < 1) return t("under a minute");
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
   const rest = minutes % 60;

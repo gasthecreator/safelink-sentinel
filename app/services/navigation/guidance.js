@@ -7,6 +7,7 @@
 
 import { NativeModules } from "react-native";
 import { spokenDistance } from "../units/units.js";
+import { t } from "../i18n/i18n.js";
 
 const native = NativeModules.SafeLinkGuidance || null;
 
@@ -109,29 +110,29 @@ export function createAnnouncer({ mode = "walk", units } = {}) {
     start(route, { rerouted = false } = {}) {
       const first = route && route.steps && route.steps[0];
       if (!first) return null;
-      return `${rerouted ? "New route. " : "Starting directions. "}${sentence(first.text)}`;
+      return `${rerouted ? t("New route.") : t("Starting directions.")} ${sentence(first.text)}`;
     },
 
     offRoute() {
-      return "You left the route. Working out a new one.";
+      return t("You left the route. Working out a new one.");
     },
 
     /** Progress from follow.update(); returns text to speak now, or null. */
     update(progress) {
       if (!progress || progress.ignored) return null;
-      if (progress.arrived) return once("arrived") ? "You have arrived." : null;
+      if (progress.arrived) return once("arrived") ? t("You have arrived.") : null;
       if (progress.endOfRoad) {
         if (!once("end")) return null;
-        const t = progress.toTarget;
-        return t
-          ? `You have reached the end of the mapped road. They are about ${spokenDistance(t.distanceM, units)} ${t.direction} of here.`
-          : "You have reached the end of the mapped road.";
+        const target = progress.toTarget;
+        return target
+          ? t("You have reached the end of the mapped road. They are about {distance} {direction} of here.", { distance: spokenDistance(target.distanceM, units), direction: t(target.direction) })
+          : t("You have reached the end of the mapped road.");
       }
       const next = progress.next;
       if (!next || next.final) return null;
       if (next.inM <= NEAR_M) return once(`${next.index}:near`) ? (spoken.add(`${next.index}:far`), sentence(next.text)) : null;
       if (next.inM <= FAR_M) {
-        return once(`${next.index}:far`) ? `In ${spokenDistance(next.inM, units)}, ${lowerFirst(sentence(next.text))}` : null;
+        return once(`${next.index}:far`) ? t("In {distance}, {instruction}", { distance: spokenDistance(next.inM, units), instruction: lowerFirst(sentence(next.text)) }) : null;
       }
       return null;
     },

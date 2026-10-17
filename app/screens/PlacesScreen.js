@@ -19,11 +19,14 @@ import { listPlaces, addPlace, removePlace, MAX_PLACES } from "../services/locat
 import { parseCoordinates } from "../services/location/places";
 import { getPositionForAlert } from "../services/location/LocationService";
 import { describePosition, describeLocationOutcome } from "../services/location/position";
+import { t } from "../services/i18n/i18n";
+import { useLanguage } from "../services/i18n/LanguageStore";
 
 // small buttons stay easy to hit: the touch area is 10 points bigger on every side
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 export default function PlacesScreen() {
+  useLanguage(); // re-render in the new language when it is changed
   const navigation = useNavigation();
   const [places, setPlaces] = useState([]);
   const [name, setName] = useState("");
@@ -38,17 +41,22 @@ export default function PlacesScreen() {
 
   const saveCurrent = async () => {
     setBusy(true);
-    setMessage("Getting your location...");
+    setMessage(t("Getting your location..."));
     try {
       const fix = await getPositionForAlert();
       if (!fix.position) {
-        setMessage(describeLocationOutcome(fix).replace("Sent without", "Could not save: no position."));
+        const why = {
+          denied: t("Could not save: location permission was declined."),
+          unavailable: t("Could not save: no GPS fix. Try near a window or outdoors."),
+          timeout: t("Could not save: no GPS fix in time."),
+        };
+        setMessage(why[fix.reason] || t("Could not save: no position."));
         return;
       }
       await addPlace({ name, position: fix.position, kind: "gps" });
       setName("");
       setMessage(
-        fix.stale ? "Saved, using an older position (no fresh GPS fix)." : "Saved your current location."
+        fix.stale ? t("Saved, using an older position (no fresh GPS fix).") : t("Saved your current location.")
       );
       await refresh();
     } catch (err) {
@@ -61,7 +69,7 @@ export default function PlacesScreen() {
   const saveTyped = async () => {
     const position = parseCoordinates(coords);
     if (!position) {
-      setMessage('Could not read those coordinates. Use decimal degrees like "30.5, -92.2".');
+      setMessage(t("Could not read those coordinates. Use decimal degrees like \"30.5, -92.2\"."));
       return;
     }
     setBusy(true);
@@ -69,7 +77,7 @@ export default function PlacesScreen() {
       await addPlace({ name, position, kind: "manual" });
       setName("");
       setCoords("");
-      setMessage("Saved.");
+      setMessage(t("Saved."));
       await refresh();
     } catch (err) {
       setMessage(err.message);
@@ -79,10 +87,10 @@ export default function PlacesScreen() {
   };
 
   const confirmDelete = (place) =>
-    Alert.alert("Delete this place?", place.name, [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("Delete this place?"), place.name, [
+      { text: t("Cancel"), style: "cancel" },
       {
-        text: "Delete",
+        text: t("Delete"),
         style: "destructive",
         onPress: async () => {
           await removePlace(place.id);
@@ -98,33 +106,31 @@ export default function PlacesScreen() {
     >
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 40 }}>
         <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>← Back</Text>
+          <Text style={styles.back}>{t("← Back")}</Text>
         </TouchableOpacity>
-        <Text accessibilityRole="header" style={styles.title}>Saved places</Text>
+        <Text accessibilityRole="header" style={styles.title}>{t("Saved places")}</Text>
         <Text style={styles.intro}>
-          Name places you can use as your position when GPS can't get a fix, such as indoors. Save them
-          while you have a fix. They stay on this phone and are only shared when you attach one to a
-          message.
+          {t("Name places you can use as your position when GPS can't get a fix, such as indoors. Save them while you have a fix. They stay on this phone and are only shared when you attach one to a message.")}
         </Text>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Name</Text>
+          <Text style={styles.label}>{t("Name")}</Text>
           <TextInput
-            accessibilityLabel="Name for this place"
+            accessibilityLabel={t("Name for this place")}
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="e.g. School shelter"
+            placeholder={t("e.g. School shelter")}
             placeholderTextColor="#64748B"
             maxLength={60}
           />
           <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, busy && styles.disabled]} disabled={busy} onPress={saveCurrent}>
-            <Text style={styles.buttonText}>Save my current location</Text>
+            <Text style={styles.buttonText}>{t("Save my current location")}</Text>
           </TouchableOpacity>
 
-          <Text style={[styles.label, { marginTop: 16 }]}>Or type coordinates (decimal degrees)</Text>
+          <Text style={[styles.label, { marginTop: 16 }]}>{t("Or type coordinates (decimal degrees)")}</Text>
           <TextInput
-            accessibilityLabel="Coordinates, latitude then longitude"
+            accessibilityLabel={t("Coordinates, latitude then longitude")}
             style={styles.input}
             value={coords}
             onChangeText={setCoords}
@@ -138,16 +144,16 @@ export default function PlacesScreen() {
             disabled={busy}
             onPress={saveTyped}
           >
-            <Text style={[styles.buttonText, styles.secondaryText]}>Save typed coordinates</Text>
+            <Text style={[styles.buttonText, styles.secondaryText]}>{t("Save typed coordinates")}</Text>
           </TouchableOpacity>
           {message ? <Text style={styles.message}>{message}</Text> : null}
         </View>
 
         <Text accessibilityRole="header" style={styles.sectionTitle}>
-          Your places ({places.length}/{MAX_PLACES})
+          {t("Your places ({count}/{max})", { count: places.length, max: MAX_PLACES })}
         </Text>
         {places.length === 0 ? (
-          <Text style={styles.empty}>No saved places yet.</Text>
+          <Text style={styles.empty}>{t("No saved places yet.")}</Text>
         ) : (
           places.map((place) => {
             const d = describePosition({ ...place, source: null });
@@ -158,11 +164,11 @@ export default function PlacesScreen() {
                   <Text style={styles.placeMeta}>
                     {d.coords}
                     {d.accuracy ? `  ${d.accuracy}` : ""}
-                    {place.kind === "manual" ? "  typed in" : ""}
+                    {place.kind === "manual" ? `  ${t("typed in")}` : ""}
                   </Text>
                 </View>
                 <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => confirmDelete(place)}>
-                  <Text style={styles.delete}>Delete</Text>
+                  <Text style={styles.delete}>{t("Delete")}</Text>
                 </TouchableOpacity>
               </View>
             );

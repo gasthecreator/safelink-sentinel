@@ -14,6 +14,7 @@ import PlacesScreen from "./screens/PlacesScreen";
 import OfflineMapsScreen from "./screens/OfflineMapsScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import { init as initUnits } from "./services/units/UnitStore";
+import { init as initLanguage } from "./services/i18n/LanguageStore";
 import NearbyScreen from "./screens/NearbyScreen";
 import FinderScreen from "./screens/FinderScreen";
 import NavigationScreen from "./screens/NavigationScreen";
@@ -40,6 +41,7 @@ export default function App() {
 
     checkOnboarding();
     initUnits(); // the person's distance units, before any screen shows one
+    initLanguage(); // and their language
   }, []);
 
   if (isLoading || showOnboarding === null) {

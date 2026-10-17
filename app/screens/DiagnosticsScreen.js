@@ -26,6 +26,8 @@ import {
   formatEntry,
   toText,
 } from "../services/diagnostics/LogBuffer";
+import { t } from "../services/i18n/i18n";
+import { useLanguage } from "../services/i18n/LanguageStore";
 
 // small buttons stay easy to hit: the touch area is 10 points bigger on every side
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
@@ -60,6 +62,7 @@ async function collectStatus() {
 }
 
 export default function DiagnosticsScreen() {
+  useLanguage(); // re-render in the new language when it is changed
   const navigation = useNavigation();
   const [status, setStatus] = useState([]);
   const [lines, setLines] = useState(() => getEntries().slice(-300));
@@ -90,9 +93,9 @@ export default function DiagnosticsScreen() {
   return (
     <View style={styles.container}>
       <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
-        <Text style={styles.back}>← Back</Text>
+        <Text style={styles.back}>{t("← Back")}</Text>
       </TouchableOpacity>
-      <Text accessibilityRole="header" style={styles.title}>Diagnostics</Text>
+      <Text accessibilityRole="header" style={styles.title}>{t("Diagnostics")}</Text>
 
       <View style={styles.card}>
         {status.map(([label, value], i) => (
@@ -108,13 +111,13 @@ export default function DiagnosticsScreen() {
           <Text style={styles.buttonText}>Share status + log</Text>
         </TouchableOpacity>
         <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, styles.secondary]} onPress={clearEntries}>
-          <Text style={[styles.buttonText, styles.secondaryText]}>Clear log</Text>
+          <Text style={[styles.buttonText, styles.secondaryText]}>{t("Clear log")}</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.log} contentContainerStyle={{ padding: 10 }}>
         {lines.length === 0 ? (
-          <Text style={styles.logEmpty}>No log lines yet.</Text>
+          <Text style={styles.logEmpty}>{t("No log lines yet.")}</Text>
         ) : (
           lines.map((entry, i) => (
             <Text

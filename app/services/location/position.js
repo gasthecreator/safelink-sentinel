@@ -8,6 +8,7 @@
 //   label      the place's name, for source "place"
 // Positions arrive from other people's phones, so everything is validated before use.
 import { formatAccuracy } from "../units/units.js";
+import { t } from "../i18n/i18n.js";
 
 
 const MAX_FUTURE_MS = 5 * 60 * 1000;
@@ -85,10 +86,10 @@ export function sanitizePosition(p, now = Date.now()) {
 
 function ageLabel(ms) {
   const minutes = Math.floor(ms / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 1) return t("just now");
+  if (minutes < 60) return t("{minutes} min ago", { minutes });
   const hours = Math.floor(minutes / 60);
-  return hours < 24 ? `${hours} h ago` : `${Math.floor(hours / 24)} d ago`;
+  return hours < 24 ? t("{hours} h ago", { hours }) : t("{days} d ago", { days: Math.floor(hours / 24) });
 }
 
 function accuracyLabel(accuracyM) {
@@ -104,14 +105,14 @@ export function describePosition(position, now = Date.now()) {
   const accuracy = accuracyLabel(p.accuracyM);
   const age = p.fixedAt != null ? ageLabel(Math.max(0, now - p.fixedAt)) : null;
   const approximate = p.accuracyM != null && p.accuracyM > APPROXIMATE_ABOVE_M;
-  const details = [accuracy, age ? `fix ${age}` : null].filter(Boolean).join(", ");
+  const details = [accuracy, age ? t("fix {age}", { age }) : null].filter(Boolean).join(", ");
   const provenance =
     p.source === "place"
       ? p.label
-        ? `From the saved place "${p.label}"`
-        : "From a saved place"
+        ? t("From the saved place \"{label}\"", { label: p.label })
+        : t("From a saved place")
       : p.source === "manual"
-      ? "Entered by hand, not measured"
+      ? t("Entered by hand, not measured")
       : null;
   return {
     coords,
@@ -128,7 +129,7 @@ export function describePosition(position, now = Date.now()) {
 export function mapsUrl(position, label, platform) {
   const p = sanitizePosition(position);
   if (!p) return null;
-  const name = encodeURIComponent(label || "SafeLink alert");
+  const name = encodeURIComponent(label || t("SafeLink alert"));
   if (platform === "ios") return `https://maps.apple.com/?ll=${p.latitude},${p.longitude}&q=${name}`;
   return `geo:${p.latitude},${p.longitude}?q=${p.latitude},${p.longitude}(${name})`;
 }
@@ -136,27 +137,27 @@ export function mapsUrl(position, label, platform) {
 /** One sentence telling the sender what happened with their location. */
 export function describeLocationOutcome({ position, reason, stale, approximate } = {}, now = Date.now()) {
   if (position && position.source === "place") {
-    return position.label ? `Saved place "${position.label}" attached.` : "Saved place attached.";
+    return position.label ? t("Saved place \"{label}\" attached.", { label: position.label }) : t("Saved place attached.");
   }
-  if (position && position.source === "manual") return "Typed-in position attached.";
+  if (position && position.source === "manual") return t("Typed-in position attached.");
   if (position) {
     const d = describePosition(position, now);
     if (approximate) {
-      return `Location attached, but only approximately (${d.accuracy}). Allow precise location in Settings so helpers can find you.`;
+      return t("Location attached, but only approximately ({accuracy}). Allow precise location in Settings so helpers can find you.", { accuracy: d.accuracy });
     }
-    if (stale && d.age) return `Location attached from ${d.age} (no fresh GPS fix yet).`;
-    return `Location attached${d.accuracy ? ` (${d.accuracy})` : ""}.`;
+    if (stale && d.age) return t("Location attached from {age} (no fresh GPS fix yet).", { age: d.age });
+    return d.accuracy ? t("Location attached ({accuracy}).", { accuracy: d.accuracy }) : t("Location attached.");
   }
   switch (reason) {
     case "denied":
-      return "Sent without your location: location permission was declined.";
+      return t("Sent without your location: location permission was declined.");
     case "unavailable":
-      return "Sent without your location: no GPS fix. Try near a window or outdoors.";
+      return t("Sent without your location: no GPS fix. Try near a window or outdoors.");
     case "timeout":
-      return "Sent without your location: no GPS fix in time.";
+      return t("Sent without your location: no GPS fix in time.");
     case "no_place":
-      return "Sent without your location: no saved place was chosen.";
+      return t("Sent without your location: no saved place was chosen.");
     default:
-      return "Sent without your location.";
+      return t("Sent without your location.");
   }
 }

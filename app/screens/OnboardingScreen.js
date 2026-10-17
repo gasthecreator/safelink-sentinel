@@ -4,6 +4,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from "react-nati
 import * as Animatable from "react-native-animatable";
 import GestureRecognizer from "react-native-swipe-gestures";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { t, N_ } from "../services/i18n/i18n";
+import { useLanguage } from "../services/i18n/LanguageStore";
 
 // small buttons stay easy to hit: the touch area is 10 points bigger on every side
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
@@ -11,28 +13,29 @@ const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 const slides = [
   {
     id: 1,
-    title: "Connect",
-    subtitle: "Stay connected, even when networks fail.",
+    title: N_("Connect"),
+    subtitle: N_("Stay connected, even when networks fail."),
     image: "📡", // Placeholder emoji - replace with require("../assets/onboarding/connect.png")
     color: "#3B82F6",
   },
   {
     id: 2,
-    title: "Communicate",
-    subtitle: "Send help requests or updates instantly.",
+    title: N_("Communicate"),
+    subtitle: N_("Send help requests or updates instantly."),
     image: "💬", // Placeholder emoji - replace with require("../assets/onboarding/communicate.png")
     color: "#F97316",
   },
   {
     id: 3,
-    title: "Survive",
-    subtitle: "Your community is your network.",
+    title: N_("Survive"),
+    subtitle: N_("Your community is your network."),
     image: "🤝", // Placeholder emoji - replace with require("../assets/onboarding/survive.png")
     color: "#10B981",
   },
 ];
 
 export default function OnboardingScreen({ navigation }) {
+  useLanguage(); // re-render in the new language when it is changed
   const [index, setIndex] = useState(0);
   const slide = slides[index];
 
@@ -82,11 +85,11 @@ export default function OnboardingScreen({ navigation }) {
           delay={300}
           style={[styles.title, { color: slide.color }]}
         >
-          {slide.title}
+          {t(slide.title)}
         </Animatable.Text>
 
         <Animatable.Text animation="fadeInUp" delay={500} style={styles.subtitle}>
-          {slide.subtitle}
+          {t(slide.subtitle)}
         </Animatable.Text>
 
         <View style={styles.dotsContainer}>
@@ -107,7 +110,7 @@ export default function OnboardingScreen({ navigation }) {
           style={[styles.button, { backgroundColor: slide.color }]}
         >
           <Text style={styles.buttonText}>
-            {index === slides.length - 1 ? "Get Started" : "Next →"}
+            {index === slides.length - 1 ? t("Get Started") : t("Next →")}
           </Text>
         </TouchableOpacity>
         </View>

@@ -7,32 +7,38 @@ import { useNavigation } from "@react-navigation/native";
 import { useUnits, setPreference } from "../services/units/UnitStore";
 import { formatDistance } from "../services/units/units";
 import { eraseMyData } from "../services/privacy/DataWipe";
+import { t, N_, LANGUAGES } from "../services/i18n/i18n";
+import { useLanguage, setPreference as setLanguagePreference } from "../services/i18n/LanguageStore";
 
 // small buttons stay easy to hit: the touch area is 10 points bigger on every side
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 const CHOICES = [
-  ["auto", "Automatic", "Follows this phone's region"],
-  ["imperial", "Miles and feet", "For example 0.4 mi, 300 ft"],
-  ["metric", "Kilometres and metres", "For example 650 m, 1.2 km"],
+  ["auto", N_("Automatic"), N_("Follows this phone's region")],
+  ["imperial", N_("Miles and feet"), N_("For example 0.4 mi, 300 ft")],
+  ["metric", N_("Kilometres and metres"), N_("For example 650 m, 1.2 km")],
 ];
+
+// Languages are listed by their own names, so someone can find theirs whatever language the app is in now.
+const LANGUAGE_CHOICES = [["auto", N_("Automatic"), N_("Follows this phone's language")], ...LANGUAGES.map((l) => [l.code, l.name, null])];
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const [units, preference] = useUnits();
+  const [, languagePreference] = useLanguage();
   const [erasing, setErasing] = useState(false);
   const [erased, setErased] = useState(null); // a sentence about what just happened
 
   const confirmErase = (resetIdentity) =>
     Alert.alert(
-      resetIdentity ? "Erase everything and start over?" : "Erase my data?",
+      resetIdentity ? t("Erase everything and start over?") : t("Erase my data?"),
       resetIdentity
-        ? "This erases your saved places, alerts, messages waiting to be sent, road reports and logs, AND this phone's identity. Other phones will see you as a brand new device, and nobody can send you messages addressed to your old identity. Downloaded maps and settings stay. This cannot be undone."
-        : "This erases your saved places, received alerts and requests, messages waiting to be sent, road reports, nearby devices and logs from this phone. Your identity, downloaded maps and settings stay. This cannot be undone.",
+        ? t("This erases your saved places, alerts, messages waiting to be sent, road reports and logs, AND this phone's identity. Other phones will see you as a brand new device, and nobody can send you messages addressed to your old identity. Downloaded maps and settings stay. This cannot be undone.")
+        : t("This erases your saved places, received alerts and requests, messages waiting to be sent, road reports, nearby devices and logs from this phone. Your identity, downloaded maps and settings stay. This cannot be undone."),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("Cancel"), style: "cancel" },
         {
-          text: resetIdentity ? "Erase and start over" : "Erase",
+          text: resetIdentity ? t("Erase and start over") : t("Erase"),
           style: "destructive",
           onPress: async () => {
             setErasing(true);
@@ -41,10 +47,10 @@ export default function SettingsScreen() {
             setErasing(false);
             setErased(
               result.failures.length
-                ? `Mostly erased, but some things could not be: ${result.failures.slice(0, 3).join("; ")}.`
+                ? t("Mostly erased, but some things could not be: {things}.", { things: result.failures.slice(0, 3).join("; ") })
                 : resetIdentity
-                ? "Everything was erased and this phone has a new identity."
-                : "Your data was erased from this phone."
+                ? t("Everything was erased and this phone has a new identity.")
+                : t("Your data was erased from this phone.")
             );
           },
         },
@@ -54,12 +60,32 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
-        <Text style={styles.back}>‹ Back</Text>
+        <Text style={styles.back}>{t("‹ Back")}</Text>
       </TouchableOpacity>
-      <Text accessibilityRole="header" style={styles.title}>Settings</Text>
+      <Text accessibilityRole="header" style={styles.title}>{t("Settings")}</Text>
 
       <View style={styles.card}>
-        <Text accessibilityRole="header" style={styles.sectionTitle}>Distances</Text>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>{t("Language")}</Text>
+        {LANGUAGE_CHOICES.map(([value, label, hint]) => (
+          <TouchableOpacity hitSlop={HIT_SLOP}
+            key={value}
+            style={styles.row}
+            onPress={() => setLanguagePreference(value)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: languagePreference === value }}
+            accessibilityLabel={hint ? `${t(label)}. ${t(hint)}` : label}
+          >
+            <Text style={styles.radio}>{languagePreference === value ? "●" : "○"}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>{hint ? t(label) : label}</Text>
+              {hint ? <Text style={styles.meta}>{t(hint)}</Text> : null}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.card}>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>{t("Distances")}</Text>
         {CHOICES.map(([value, label, hint]) => (
           <TouchableOpacity hitSlop={HIT_SLOP}
             key={value}
@@ -67,23 +93,22 @@ export default function SettingsScreen() {
             onPress={() => setPreference(value)}
             accessibilityRole="radio"
             accessibilityState={{ selected: preference === value }}
-            accessibilityLabel={`${label}. ${hint}`}
+            accessibilityLabel={`${t(label)}. ${t(hint)}`}
           >
             <Text style={styles.radio}>{preference === value ? "●" : "○"}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{label}</Text>
-              <Text style={styles.meta}>{hint}</Text>
+              <Text style={styles.name}>{t(label)}</Text>
+              <Text style={styles.meta}>{t(hint)}</Text>
             </View>
           </TouchableOpacity>
         ))}
-        <Text style={styles.meta}>Showing 1,000 metres as {formatDistance(1000, units)}.</Text>
+        <Text style={styles.meta}>{t("Showing 1,000 metres as {distance}.", { distance: formatDistance(1000, units) })}</Text>
       </View>
 
       <View style={styles.card}>
-        <Text accessibilityRole="header" style={styles.sectionTitle}>Your data on this phone</Text>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>{t("Your data on this phone")}</Text>
         <Text style={styles.meta}>
-          Everything stays on this phone unless you attach it to a message. You can erase it here: for example before
-          handing the phone to someone else.
+          {t("Everything stays on this phone unless you attach it to a message. You can erase it here: for example before handing the phone to someone else.")}
         </Text>
         <TouchableOpacity
           hitSlop={HIT_SLOP}
@@ -93,7 +118,7 @@ export default function SettingsScreen() {
           style={[styles.danger, erasing && { opacity: 0.5 }]}
           onPress={() => confirmErase(false)}
         >
-          <Text style={styles.dangerText}>Erase my data</Text>
+          <Text style={styles.dangerText}>{t("Erase my data")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           hitSlop={HIT_SLOP}
@@ -103,7 +128,7 @@ export default function SettingsScreen() {
           style={[styles.danger, erasing && { opacity: 0.5 }]}
           onPress={() => confirmErase(true)}
         >
-          <Text style={styles.dangerText}>Erase everything and get a new identity</Text>
+          <Text style={styles.dangerText}>{t("Erase everything and get a new identity")}</Text>
         </TouchableOpacity>
         {erased ? <Text accessibilityLiveRegion="polite" style={styles.done}>{erased}</Text> : null}
       </View>

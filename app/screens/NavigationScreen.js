@@ -22,6 +22,8 @@ import { parseCoordinates } from "../services/location/places";
 import { sanitizePosition, describePosition } from "../services/location/position";
 import RoadReportStore from "../services/roads/RoadReportStore";
 import { describeKind } from "../services/roads/reports";
+import { t, tp } from "../services/i18n/i18n";
+import { useLanguage } from "../services/i18n/LanguageStore";
 
 // small buttons stay easy to hit: the touch area is 10 points bigger on every side
 const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
@@ -45,6 +47,8 @@ export default function NavigationScreen() {
 
   const destination = useMemo(() => sanitizePosition(alert.location), [alert.location]);
   const [units] = useUnits(); // re-renders (and re-words the route) when the units setting changes
+  const [language] = useLanguage(); // likewise for the language
+  const leftNoteText = useRef(null); // the "you left the route" note, so it can be cleared once the new route is in
   const [mode, setMode] = useState("walk");
   const [source, setSource] = useState("gps"); // gps | place | typed
   const [gps, setGps] = useState({ state: "loading" });
@@ -159,7 +163,7 @@ export default function NavigationScreen() {
     // Blocked roads are only routed around if the person wants that; hazards are always listed.
     const avoid = avoidOn ? closures : closures.filter((c) => c.kind === "hazard");
     return { kind: "routed", pack, result: computeRoute(pack, routeStart, destination, { mode, avoid, formatDistance: (m) => formatDistance(m, units) }) };
-  }, [destination, routeStart, found, mode, closures, avoidOn, units]);
+  }, [destination, routeStart, found, mode, closures, avoidOn, units, language]);
 
   const applyTyped = () => {
     const p = parseCoordinates(typed);
@@ -186,7 +190,7 @@ export default function NavigationScreen() {
       startedSpeaking.current = true;
       rerouted.current = false;
       lastAnnounced.current = -1;
-      setLiveNote((n) => (n && n.startsWith("You left") ? null : n));
+      setLiveNote((n) => (n && n === leftNoteText.current ? null : n));
       if (lastPos.current) {
         // show where you are on the new route straight away, without waiting for the next fix
         const res = followUpdate(follower.current, lastPos.current, destination);
@@ -219,7 +223,8 @@ export default function NavigationScreen() {
     }
     if (res.offRoute && canReroute(res.state)) {
       follower.current = markRerouted(res.state);
-      setLiveNote("You left the route. Working out a new one...");
+      leftNoteText.current = t("You left the route. Working out a new one...");
+      setLiveNote(leftNoteText.current);
       rerouted.current = true;
       say(announcer.current.offRoute());
       buzz([0, 150, 100, 150]);
@@ -231,7 +236,7 @@ export default function NavigationScreen() {
     if (!live) return undefined;
     setLiveNote(null);
     return watchPositionUpdates(onFix, (reason) =>
-      setLiveNote(reason === "denied" ? "Location permission was turned off, so directions cannot follow you." : "Lost the GPS signal. Directions will continue when it returns.")
+      setLiveNote(reason === "denied" ? t("Location permission was turned off, so directions cannot follow you.") : t("Lost the GPS signal. Directions will continue when it returns."))
     );
   }, [live, onFix]);
 
@@ -275,44 +280,43 @@ export default function NavigationScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 48 }}>
       <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={() => navigation.goBack()}>
-        <Text style={styles.back}>← Back</Text>
+        <Text style={styles.back}>{t("← Back")}</Text>
       </TouchableOpacity>
-      <Text accessibilityRole="header" style={styles.title}>Directions to {alert.title ? `"${alert.title}"` : "them"}</Text>
+      <Text accessibilityRole="header" style={styles.title}>{alert.title ? t("Directions to \"{name}\"", { name: alert.title }) : t("Directions to them")}</Text>
       {alert.subtitle ? <Text style={styles.where}>{alert.subtitle}</Text> : null}
-      {alert.where ? <Text style={styles.where}>They said: {alert.where}</Text> : null}
+      {alert.where ? <Text style={styles.where}>{t("They said: {where}", { where: alert.where })}</Text> : null}
       <Text style={styles.note}>
-        Worked out on this phone from an offline map, with no internet. It follows the roads in the
-        map and cannot know about closures, damage or flooding.
+        {t("Worked out on this phone from an offline map, with no internet. It follows the roads in the map and cannot know about closures, damage or flooding.")}
       </Text>
 
       {!destination ? (
-        <Card><Text style={styles.big}>No position to navigate to</Text>
-          <Text style={styles.body}>This alert did not include where the sender is. Use their own words above.</Text>
+        <Card><Text style={styles.big}>{t("No position to navigate to")}</Text>
+          <Text style={styles.body}>{t("This alert did not include where the sender is. Use their own words above.")}</Text>
         </Card>
       ) : (
         <>
-          <Text style={styles.label}>Start from</Text>
+          <Text style={styles.label}>{t("Start from")}</Text>
           <View style={styles.row}>
-            {[["gps", "GPS"], ["place", "Saved place"], ["typed", "Typed"]].map(([v, l]) => (
+            {[["gps", t("GPS")], ["place", t("Saved place")], ["typed", t("Typed")]].map(([v, l]) => (
               <Chip key={v} label={l} active={source === v} onPress={() => setSource(v)} />
             ))}
           </View>
 
           {source === "gps" ? (
             <Text style={styles.body}>
-              {gps.state === "loading" ? "Getting your position..."
-                : gps.state === "ok" ? `Your position: ${describePosition(gps.fix.position).text}${gps.fix.stale ? " (older fix)" : ""}`
-                : "No GPS position. Choose a saved place or type coordinates."}
+              {gps.state === "loading" ? t("Getting your position...")
+                : gps.state === "ok" ? t("Your position: {position}{older}", { position: describePosition(gps.fix.position).text, older: gps.fix.stale ? ` ${t("(older fix)")}` : "" })
+                : t("No GPS position. Choose a saved place or type coordinates.")}
               {gps.state !== "loading" ? "  " : ""}
             </Text>
           ) : null}
           {source === "gps" && gps.state !== "loading" ? (
-            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={readGps}><Text style={styles.link}>Try GPS again</Text></TouchableOpacity>
+            <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" onPress={readGps}><Text style={styles.link}>{t("Try GPS again")}</Text></TouchableOpacity>
           ) : null}
 
           {source === "place" ? (
             places.length === 0 ? (
-              <Text style={styles.body}>No saved places yet. Save one from the home screen's Saved places.</Text>
+              <Text style={styles.body}>{t("No saved places yet. Save one from the home screen's Saved places.")}</Text>
             ) : (
               places.map((p) => (
                 <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ selected: p.id === placeId }} key={p.id} style={[styles.place, p.id === placeId && styles.placeActive]} onPress={() => setPlaceId(p.id)}>
@@ -325,7 +329,7 @@ export default function NavigationScreen() {
           {source === "typed" ? (
             <View>
               <TextInput
-                accessibilityLabel="Your starting point as coordinates, latitude then longitude"
+                accessibilityLabel={t("Your starting point as coordinates, latitude then longitude")}
                 style={styles.input}
                 value={typed}
                 onChangeText={setTyped}
@@ -334,56 +338,56 @@ export default function NavigationScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={styles.button} onPress={applyTyped}><Text style={styles.buttonText}>Use these coordinates</Text></TouchableOpacity>
+              <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={styles.button} onPress={applyTyped}><Text style={styles.buttonText}>{t("Use these coordinates")}</Text></TouchableOpacity>
               {typedError ? <Text style={styles.error}>{typedError}</Text> : null}
             </View>
           ) : null}
 
           {closures.some((c) => c.kind === "blocked") ? (
             <>
-              <Text style={styles.label}>Road reports from people nearby</Text>
+              <Text style={styles.label}>{t("Road reports from people nearby")}</Text>
               <View style={styles.row}>
-                <Chip label="Avoid reported closures" active={avoidOn} onPress={() => setAvoidOn(true)} />
-                <Chip label="Ignore them" active={!avoidOn} onPress={() => setAvoidOn(false)} />
+                <Chip label={t("Avoid reported closures")} active={avoidOn} onPress={() => setAvoidOn(true)} />
+                <Chip label={t("Ignore them")} active={!avoidOn} onPress={() => setAvoidOn(false)} />
               </View>
             </>
           ) : null}
 
-          <Text style={styles.label}>Travelling</Text>
+          <Text style={styles.label}>{t("Travelling")}</Text>
           <View style={styles.row}>
-            <Chip label="On foot" active={mode === "walk"} onPress={() => setMode("walk")} />
-            <Chip label="By car" active={mode === "drive"} onPress={() => setMode("drive")} />
+            <Chip label={t("On foot")} active={mode === "walk"} onPress={() => setMode("walk")} />
+            <Chip label={t("By car")} active={mode === "drive"} onPress={() => setMode("drive")} />
           </View>
         </>
       )}
 
       {outcome.kind === "no_start" && destination ? (
-        <Card><Text style={styles.big}>Where are you starting from?</Text>
-          <Text style={styles.body}>Pick a start above to see the route.</Text></Card>
+        <Card><Text style={styles.big}>{t("Where are you starting from?")}</Text>
+          <Text style={styles.body}>{t("Pick a start above to see the route.")}</Text></Card>
       ) : null}
 
       {outcome.kind === "no_pack" ? (
         <Card>
-          <Text style={styles.big}>No offline map for this area</Text>
+          <Text style={styles.big}>{t("No offline map for this area")}</Text>
           <Text style={styles.body}>
             {outcome.partial
-              ? `The "${outcome.partial.name}" map covers only one of the two places. `
-              : "None of the maps on this phone cover these places. "}
-            Download a map for this area while you have internet, or use their position and the Maps button on the alert instead.
+              ? `${t("The \"{name}\" map covers only one of the two places.", { name: outcome.partial.name })} `
+              : `${t("None of the maps on this phone cover these places.")} `}
+            {t("Download a map for this area while you have internet, or use their position and the Maps button on the alert instead.")}
           </Text>
           <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, { marginTop: 12 }]} onPress={() => navigation.navigate("OfflineMaps")}>
-            <Text style={styles.buttonText}>Get offline maps</Text>
+            <Text style={styles.buttonText}>{t("Get offline maps")}</Text>
           </TouchableOpacity>
         </Card>
       ) : null}
 
       {result && !result.ok ? (
         <Card>
-          <Text style={styles.big}>{result.reason === "blocked_by_reports" ? "Reported closures block the way" : "No route"}</Text>
+          <Text style={styles.big}>{result.reason === "blocked_by_reports" ? t("Reported closures block the way") : t("No route")}</Text>
           <Text style={styles.body}>{result.message}</Text>
           {result.reason === "blocked_by_reports" ? (
             <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, { marginTop: 12 }]} onPress={() => setAvoidOn(false)}>
-              <Text style={styles.buttonText}>Show the route anyway</Text>
+              <Text style={styles.buttonText}>{t("Show the route anyway")}</Text>
             </TouchableOpacity>
           ) : null}
         </Card>
@@ -394,7 +398,7 @@ export default function NavigationScreen() {
           <Card>
             <Text style={styles.big}>{formatDistance(result.distanceM)}</Text>
             <Text style={styles.body}>
-              About {formatDuration(result.durationS)} {mode === "walk" ? "on foot" : "by car"} · {outcome.pack.name}
+              {t("About {time} {how}", { time: formatDuration(result.durationS), how: mode === "walk" ? t("on foot") : t("by car") })} · {outcome.pack.name}
             </Text>
           </Card>
           {result.warnings.map((w) => (
@@ -402,36 +406,40 @@ export default function NavigationScreen() {
           ))}
           {result.detour && result.detour.closures.length ? (
             <Text style={styles.detour}>
-              Going around {result.detour.closures.length} reported closure{result.detour.closures.length === 1 ? "" : "s"}:
-              {" "}about {formatDistance(Math.max(0, result.detour.extraM))} and {formatDuration(Math.max(0, result.detour.extraS))} longer.
+              {tp(
+                "Going around {count} reported closure: about {distance} and {time} longer.",
+                "Going around {count} reported closures: about {distance} and {time} longer.",
+                result.detour.closures.length,
+                { distance: formatDistance(Math.max(0, result.detour.extraM)), time: formatDuration(Math.max(0, result.detour.extraS)) }
+              )}
             </Text>
           ) : null}
           {result.hazardsOnRoute && result.hazardsOnRoute.length ? (
             <Text style={styles.warn}>
-              Hazard reported near this route: {result.hazardsOnRoute.map((h) => h.note || "take care").join("; ")}.
+              {t("Hazard reported near this route: {notes}.", { notes: result.hazardsOnRoute.map((h) => h.note || t("take care")).join("; ") })}
             </Text>
           ) : null}
           {live ? (
             <LivePanel progress={progress} note={liveNote} onStop={stopLive} voice={voiceAvailable ? { on: voiceOn, toggle: toggleVoice } : null} />
           ) : source === "gps" && gps.state === "ok" ? (
             <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, { marginBottom: 12 }]} onPress={startLive}>
-              <Text style={styles.buttonText}>Start live directions</Text>
+              <Text style={styles.buttonText}>{t("Start live directions")}</Text>
             </TouchableOpacity>
           ) : null}
           <RouteMap graph={outcome.pack} route={result} you={live && livePos ? livePos : routeStart} them={destination} closures={closures} width={mapWidth} height={300} />
           {closures.length ? (
             <View style={{ marginTop: 10 }}>
-              <Text style={styles.label}>Road reports in force</Text>
+              <Text style={styles.label}>{t("Road reports in force")}</Text>
               {closures.map((c, i) => (
                 <Text key={i} style={styles.reportLine}>
                   {c.kind === "blocked" ? "✕" : "!"} {describeKind(c.kind)}{c.note ? `: ${c.note}` : ""}{" "}
-                  ({Math.max(1, Math.round((Date.now() - c.reportedAt) / 60000))} min ago
-                  {c.reporters > 1 ? `, ${c.reporters} phones` : ""}{c.disputed ? ", disputed" : ""})
+                  ({t("{minutes} min ago", { minutes: Math.max(1, Math.round((Date.now() - c.reportedAt) / 60000)) })}
+                  {c.reporters > 1 ? `, ${t("{count} phones", { count: c.reporters })}` : ""}{c.disputed ? `, ${t("disputed")}` : ""})
                 </Text>
               ))}
             </View>
           ) : null}
-          <Text style={styles.label}>Directions</Text>
+          <Text style={styles.label}>{t("Directions")}</Text>
           {result.steps.map((s, i) => (
             <View key={i} style={styles.step}>
               <Text style={styles.stepNum}>{i + 1}</Text>
@@ -443,10 +451,10 @@ export default function NavigationScreen() {
           ))}
           {alert.senderId ? (
             <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, { marginTop: 18 }]} onPress={() => navigation.navigate("Finder", { alert })}>
-              <Text style={styles.buttonText}>Close by? Find them by Bluetooth</Text>
+              <Text style={styles.buttonText}>{t("Close by? Find them by Bluetooth")}</Text>
             </TouchableOpacity>
           ) : null}
-          <Text style={styles.attribution}>Map data {outcome.pack.attribution}</Text>
+          <Text style={styles.attribution}>{t("Map data {attribution}", { attribution: outcome.pack.attribution })}</Text>
         </>
       ) : null}
     </ScrollView>
@@ -456,36 +464,36 @@ export default function NavigationScreen() {
 const LivePanel = ({ progress, note, onStop, voice }) => (
   <View style={styles.live}>
     {progress && progress.arrived ? (
-      <Text style={styles.liveBig}>You have arrived</Text>
+      <Text style={styles.liveBig}>{t("You have arrived")}</Text>
     ) : progress && progress.endOfRoad ? (
       <>
-        <Text style={styles.liveBig}>End of the mapped road</Text>
+        <Text style={styles.liveBig}>{t("End of the mapped road")}</Text>
         {progress.toTarget ? (
           <Text style={styles.liveText}>They are about {formatDistance(progress.toTarget.distanceM)} {progress.toTarget.direction} of here, off the roads in the map.</Text>
         ) : null}
-        <Text style={styles.liveSmall}>Use Find them by Bluetooth to close the last stretch.</Text>
+        <Text style={styles.liveSmall}>{t("Use Find them by Bluetooth to close the last stretch.")}</Text>
       </>
     ) : progress && progress.next ? (
       <>
-        <Text style={styles.liveBig}>{progress.next.inM > 0 ? `In ${formatDistance(progress.next.inM)}` : "Now"}</Text>
-        <Text style={styles.liveText}>{progress.next.final ? "End of the mapped road" : progress.next.text}</Text>
+        <Text style={styles.liveBig}>{progress.next.inM > 0 ? t("In {distance}", { distance: formatDistance(progress.next.inM) }) : t("Now")}</Text>
+        <Text style={styles.liveText}>{progress.next.final ? t("End of the mapped road") : progress.next.text}</Text>
         <Text style={styles.liveSmall}>
-          {formatDistance(progress.remainingM)} to go · about {formatDuration(progress.remainingS)}
-          {progress.ignored ? " · waiting for a better GPS fix" : ""}
+          {t("{distance} to go · about {time}", { distance: formatDistance(progress.remainingM), time: formatDuration(progress.remainingS) })}
+          {progress.ignored ? ` · ${t("waiting for a better GPS fix")}` : ""}
         </Text>
       </>
     ) : (
-      <Text style={styles.liveText}>Waiting for your position...</Text>
+      <Text style={styles.liveText}>{t("Waiting for your position...")}</Text>
     )}
     {note ? <Text style={styles.liveNote}>{note}</Text> : null}
-    <Text style={styles.liveSmall}>The screen stays on while directions are live, and they keep going if you lock the phone.</Text>
+    <Text style={styles.liveSmall}>{t("The screen stays on while directions are live, and they keep going if you lock the phone.")}</Text>
     {voice ? (
-      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ checked: voice.on }} accessibilityLabel={voice.on ? "Spoken directions are on. Double tap to turn off." : "Spoken directions are off. Double tap to turn on."} onPress={voice.toggle}>
-        <Text style={styles.link}>{voice.on ? "Voice on: tap to turn off" : "Voice off: tap to turn on"}</Text>
+      <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityState={{ checked: voice.on }} accessibilityLabel={voice.on ? t("Spoken directions are on. Double tap to turn off.") : t("Spoken directions are off. Double tap to turn on.")} onPress={voice.toggle}>
+        <Text style={styles.link}>{voice.on ? t("Voice on: tap to turn off") : t("Voice off: tap to turn on")}</Text>
       </TouchableOpacity>
     ) : null}
     <TouchableOpacity hitSlop={HIT_SLOP} accessibilityRole="button" style={[styles.button, styles.stop]} onPress={onStop}>
-      <Text style={styles.buttonText}>Stop</Text>
+      <Text style={styles.buttonText}>{t("Stop")}</Text>
     </TouchableOpacity>
   </View>
 );

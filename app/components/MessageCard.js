@@ -2,6 +2,7 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import * as Animatable from "react-native-animatable";
+import { t } from "../services/i18n/i18n";
 
 const PRIORITY_COLORS = {
   critical: "#EF4444",
@@ -36,7 +37,7 @@ export default function MessageCard({
         ) : null}
         {time ? <Text style={styles.meta}>🕐 {time}</Text> : null}
         {(location || onPress || navigation) && (
-          <Text style={styles.navigateHint}>Tap to navigate →</Text>
+          <Text style={styles.navigateHint}>{t("Tap to navigate →")}</Text>
         )}
       </View>
     </View>
