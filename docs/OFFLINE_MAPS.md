@@ -194,7 +194,9 @@ Be clear about its limits:
 - **Places off the roads:** if a position is far from any road in the pack the route starts at
   the nearest road and the screen says how far away that is; the dashed line on the map is that gap.
 - **Directions:** a turn is announced only at a junction, and gentle bends on the same street are not.
-  Names are whatever OpenStreetMap has, so the same road can be spelled two ways.
+  Names are whatever OpenStreetMap has, but common variants are brought to one spelling when a map is loaded
+  ("Jr" and "Junior", "Ave" and "Avenue", "PIne" typos, "N Main St"), so the same road is not announced as two.
+  Names it does not recognise are left exactly as they are.
 - **Live directions:** with a GPS start, **Start live directions** follows the phone along the route:
   distance to the next turn, distance and time left, a buzz when a turn is near. Leaving the route
   (two fixes more than about 40-120 m away, a few seconds apart; poor-accuracy fixes are ignored)
